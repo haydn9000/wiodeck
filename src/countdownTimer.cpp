@@ -35,16 +35,19 @@ static uint16_t cdWarn()   { return tft.color565(210,  55, 20); }   // red-orang
 // LCD backlight PWM driver — causing the screen to go dark.
 static void cdBeep()
 {
-    // 4000 Hz is at/near the resonant frequency of the Wio Terminal's passive
-    // buzzer — half-period = 125 µs.  Bit-bang keeps us off TC0 (backlight).
+    if (g_volume == 0) return;
+    // 4000 Hz — half-period = 125 µs.  Duty cycle scales with g_volume.
+    const uint32_t halfUs = 125;
+    uint32_t highUs = halfUs * (uint32_t)g_volume / 4;  // vol 1=31µs, 4=125µs
+    uint32_t lowUs  = 2 * halfUs - highUs;
     pinMode(WIO_BUZZER, OUTPUT);
     for (int b = 0; b < 5; b++) {
         uint32_t t0 = millis();
-        while (millis() - t0 < 200) {          // 200 ms tone
+        while (millis() - t0 < 200) {   // 200 ms tone
             digitalWrite(WIO_BUZZER, HIGH);
-            delayMicroseconds(125);
+            delayMicroseconds(highUs);
             digitalWrite(WIO_BUZZER, LOW);
-            delayMicroseconds(125);
+            delayMicroseconds(lowUs);
         }
         delay(100);   // silence between beeps
     }

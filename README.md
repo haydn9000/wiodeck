@@ -8,19 +8,18 @@ A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio
 ## Screens
 
 | Screen | File | Description | Preview |
-|---|---|---|---|
-| **Home** | `homeScreen.cpp` | Live sensor dashboard — accelerometer (X/Y/Z bars), light level, and microphone amplitude | <img src="img/home-screen.BMP" width="240"> |
+|---|---|---|---------|
 | **Pomodoro** | `pomodoro.cpp` | Classic Pomodoro focus timer — 4× (25 min work → 5 min break) → 15 min long break. Start/pause, skip phase, reset. Buzzer alerts on phase change. | <img src="img/pomodoro-screen.BMP" width="240"> |
 | **Stopwatch** | `stopwatch.cpp` | Stopwatch with lap splits | <img src="img/stopwatch-screen.BMP" width="240"> |
 | **Countdown** | `countdownTimer.cpp` | Countdown timer with HH:MM:SS input. Hold UP/DOWN to adjust, LEFT/RIGHT to cycle fields. Buzzer beeps on expiry. | <img src="img/countdown-screen.BMP" width="240"> |
-| **Claude Usage** | `claudeUsage.cpp` | Displays session (5h) and weekly (7d) Claude API utilisation, fed over USB serial or BLE | <img src="img/claude-usage-screen.BMP" width="240"> |
 | **Sys Stats** | `sysStats.cpp` | Arc gauges for CPU, RAM, GPU, VRAM usage + temperatures and network bandwidth, fed over USB serial or BLE | <img src="img/sysstats-screen.BMP" width="240"> |
 | **Process Watch** | `processWatch.cpp` | Top-5 CPU processes by usage, fed over USB serial or BLE | <img src="img/processes-screen.BMP" width="240"> |
-| **WiFi Scanner** | `wifiScanner.cpp` | Scans for nearby 2.4 GHz + 5 GHz networks and displays SSID, signal strength, and auth type | |
+| **Claude Usage** | `claudeUsage.cpp` | Displays session (5h) and weekly (7d) Claude API utilisation, fed over USB serial or BLE | <img src="img/claude-usage-screen.BMP" width="240"> |
+| **AP Scan** | `wifiAnalyser.cpp` | Wi-Fi analyser — list view (SSID, band, channel, dBm, signal bar) + 2.4 GHz and 5 GHz channel congestion maps. Yellow triangle marks the least-congested non-overlapping channel (1, 6, or 11). | |
 | **BLE Scanner** | `bleScanner.cpp` | Scans for nearby BLE devices and displays RSSI signal strength | |
-| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images stored on the microSD card | |
 | **Matrix Rain** | `matrixRain.cpp` | Animated Matrix-style digital rain | <img src="img/matrix-screen.BMP" width="240"> |
-| **Settings** | `backlight.cpp` | Joystick-adjustable backlight brightness (5–100%) | <img src="img/settings-screen.BMP" width="240"> |
+| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images stored on the microSD card | |
+| **Settings** | `settings.cpp` | Settings menu with four sub-screens: Backlight (brightness), Volume (buzzer level), Sensors (live accelerometer/light/mic dashboard), Device Info (MCU specs, memory, serial number, firmware build). All settings persist to flash. | <img src="img/settings-screen.BMP" width="240"> |
 
 ## Hardware
 
@@ -40,7 +39,7 @@ pio run --target upload   # build and upload over USB
 
 1. Create `src/myScreen.cpp` with a function `void myScreen()` that blocks until the user exits (KEY_C).
 2. Declare it in `include/globals.h`.
-3. Add an entry to `menuItems[]` and a `case` in `navigation()` in `src/homeScreen.cpp`.
+3. Add an entry to `menuItems[]` in `src/main.cpp` and a `case` in `navigation()` in `src/menu.cpp`.
 
 Every screen has access to:
 
@@ -56,11 +55,11 @@ Every screen has access to:
 
 | Input | Action |
 |---|---|
-| KEY_A (top-right) | Jump directly to brightness screen |
+| KEY_A (top-right) | Jump directly to Settings screen |
 | KEY_C (top-left) | Return to menu from any screen |
 | Joystick UP / DOWN | Move menu selection |
 | Joystick PRESS | Enter selected screen |
-| Joystick LEFT / RIGHT | Adjust brightness (on brightness screen) |
+| Joystick LEFT / RIGHT | Adjust value (brightness / volume sub-screens) |
 
 ## Project layout
 
@@ -68,8 +67,10 @@ Every screen has access to:
 wiodeck/
 ├── src/
 │   ├── main.cpp               Global definitions, setup(), loop(), screen dispatch
-│   ├── homeScreen.cpp         Menu render + joystick navigation
-│   ├── backlight.cpp          Brightness sub-screen (setBrightness)
+│   ├── menu.cpp               Main menu render + joystick navigation
+│   ├── settings.cpp           Settings menu + sub-screens (backlight/volume/sensors/device-info)
+│   ├── sensors.cpp            Sensor dashboard (accelerometer, light, mic)
+│   ├── deviceInfo.cpp         Device info (MCU, memory, serial number, firmware build)
 │   ├── battery.cpp            BQ27441-G1A I²C driver + battery overlay
 │   ├── bluetooth.cpp          BLE GATT peripheral + shared BLE infrastructure
 │   ├── claudeUsage.cpp        Claude Usage screen
@@ -78,7 +79,7 @@ wiodeck/
 │   ├── stopwatch.cpp          Stopwatch with lap splits
 │   ├── countdownTimer.cpp     Countdown timer
 │   ├── processWatch.cpp       Top-5 CPU processes
-│   ├── wifiScanner.cpp        WiFi scanner (2.4 + 5 GHz)
+│   ├── wifiAnalyser.cpp       Wi-Fi analyser (list + 2.4 GHz / 5 GHz channel maps)
 │   ├── bleScanner.cpp         BLE device scanner
 │   ├── sdCardViewer.cpp       SD card BMP viewer
 │   ├── screenshot.cpp         KEY_B: saves screen to microSD as BMP

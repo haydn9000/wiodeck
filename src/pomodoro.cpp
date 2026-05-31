@@ -118,13 +118,16 @@ static const char* pomNextPhaseName()
 // Avoids any conflict with the TC0-based LCD backlight PWM.
 static void pomBeep(uint16_t freqHz, uint16_t durationMs)
 {
+    if (g_volume == 0) return;
     uint32_t halfUs = 500000UL / freqHz;
+    uint32_t highUs = halfUs * (uint32_t)g_volume / 4;  // vol 1=12.5% duty, 4=50%
+    uint32_t lowUs  = 2 * halfUs - highUs;
     uint32_t endMs  = millis() + durationMs;
     while ((int32_t)(millis() - (int32_t)endMs) < 0) {
         digitalWrite(WIO_BUZZER, HIGH);
-        delayMicroseconds(halfUs);
+        delayMicroseconds(highUs);
         digitalWrite(WIO_BUZZER, LOW);
-        delayMicroseconds(halfUs);
+        delayMicroseconds(lowUs);
     }
 }
 

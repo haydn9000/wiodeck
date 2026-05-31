@@ -2,7 +2,7 @@
 
 ## Project overview
 
-A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with twelve screens: Home sensor dashboard, Sys Stats, Pomodoro timer, Stopwatch, Countdown timer, Claude Usage, Process Watch, WiFi Scanner, BLE Scanner, SD Card Viewer, Matrix Rain, and a brightness Settings screen. New screens slot in without touching anything outside `main.cpp` and `globals.h`.
+A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with eleven main-menu screens: Pomodoro timer, Stopwatch, Countdown timer, Sys Stats, Process Watch, Claude Usage, AP Scan (WiFi analyser), BLE Scanner, Matrix Rain, SD Card Viewer, and Settings. The Settings screen hosts four sub-screens: Backlight, Volume, Sensor Dashboard (accelerometer/light/mic), and Device Info (MCU specs, memory usage, serial number, firmware build). New screens slot in without touching anything outside `main.cpp`, `menu.cpp`, and `globals.h`.
 
 Built with PlatformIO (`atmelsam` platform, `arduino` framework, `seeed_wio_terminal` board).
 
@@ -45,8 +45,9 @@ pio run --target upload   # build + upload over USB (bossac)
 ```
 src/
   main.cpp             — Global definitions, setup(), loop(), top-level screen dispatch
-  homeScreen.cpp       — Menu render + joystick navigation; register new screens here
-  backlight.cpp        — Brightness sub-screen (setBrightness)
+  menu.cpp             — Main menu render + joystick navigation; register new screens here
+  sensors.cpp          — Sensor dashboard (accelerometer, light sensor, microphone)
+  settings.cpp         — Settings menu (backlight / volume / sensors / device-info sub-screens); persists to flash
   battery.cpp          — BQ27441-G1A I²C driver + drawBatteryStatus() overlay
   bluetooth.cpp        — BLE GATT peripheral (WT-001); deferred init, on-demand advertising
   claudeUsage.cpp      — Claude Usage screen: JSON parser, serial reader, usage display
@@ -55,11 +56,12 @@ src/
   stopwatch.cpp        — Stopwatch with lap splits
   countdownTimer.cpp   — Countdown timer: HH:MM:SS input, hold-to-repeat, buzzer on expiry
   processWatch.cpp     — Top-5 CPU processes by usage, fed via process_sender.py
-  wifiScanner.cpp      — WiFi scanner: 2.4 GHz + 5 GHz networks, SSID/RSSI/auth display
+  wifiAnalyser.cpp    — Wi-Fi analyser: list view (SSID/band/ch/dBm) + 2.4 GHz and 5 GHz channel maps
   bleScanner.cpp       — BLE device scanner: nearby devices + RSSI bars
   sdCardViewer.cpp     — SD card BMP viewer: browse and display 24/32-bit BMP images
   screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCRN####.BMP
   matrixRain.cpp       — Animated Matrix-style digital rain
+  deviceInfo.cpp       — Device info sub-screen: MCU, memory, serial number, firmware build
 include/
   globals.h            — extern declarations and function prototypes for all .cpp files
   lcd_backlight.hpp    — SAMD51 TC0 PWM backlight driver (Seeed original, Boost licence)
@@ -109,21 +111,21 @@ void myScreen()
 void myScreen();
 ```
 
-### 3. Register it in `src/homeScreen.cpp`
+### 3. Register it in `src/menu.cpp`
 
-Add a label to `menuItems[]` in `main.cpp` (increment `MENU_COUNT` in `globals.h` too), then add a `case` in `navigation()`:
+Add a label to `menuItems[]` in `main.cpp` (increment `MENU_COUNT` in `globals.h` too), then add a `case` in `navigation()` in `menu.cpp`:
 
 ```cpp
 // In main.cpp — menuItems array
-const char* menuItems[] = { "HOME", "POMODORO", "STOPWATCH", "COUNTDOWN", "CLAUDE",
-                             "SYS STATS", "PROCS", "WIFI SCAN", "BLE SCAN",
-                             "SD VIEW", "MATRIX", "SETTINGS", "My Screen" };
+const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS",
+                             "CLAUDE", "AP SCAN", "BLE SCAN", "MATRIX",
+                             "SD VIEW", "SETTINGS", "My Screen" };
 
 // In globals.h — update the count
-constexpr int MENU_COUNT = 13;
+constexpr int MENU_COUNT = 12;
 
-// In homeScreen.cpp — navigation() switch
-case 12: myScreen(); break;
+// In menu.cpp — navigation() switch
+case 11: myScreen(); break;
 ```
 
 ## Shared infrastructure
@@ -165,7 +167,7 @@ Each sub-screen is a **blocking loop** that returns when the user exits. On retu
 **BLE Scanner entry** always calls `bleHardReset()`: `ble_deinit()` + 500 ms settle + full `bleInit()` (re-registers GATT profile on RTL8720DN). This guarantees a clean scan state regardless of prior WiFi activity or advertising. `doBleScan()` then calls `ble_start()` (via the `ble_start_flags` check) before issuing `le_scan_timer_start()`.
 
 ### WiFi + BLE interaction
-The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / `wifi_on()` (called by `WiFi.mode()`) reset the radio coexistence state but do not touch the BLE firmware module. After exiting the WiFi scanner, `bleReinit()` resets `ble_start_flags` so the next BLE operation re-issues `ble_start()`. BLE data screens (Claude, Sys Stats, Process Watch) re-start advertising correctly via the `ble_start()` guard in `bleSetActive(true)`.
+The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / `wifi_on()` (called by `WiFi.mode()`) reset the radio coexistence state but do not touch the BLE firmware module. After exiting the WiFi analyser, `bleReinit()` resets `ble_start_flags` so the next BLE operation re-issues `ble_start()`. BLE data screens (Claude, Sys Stats, Process Watch) re-start advertising correctly via the `ble_start()` guard in `bleSetActive(true)`.
 
 ### SD card viewer
 `sdCardViewer.cpp` reads BMP files from the microSD card root. Supported formats: 24-bit BI_RGB and 32-bit BI_RGB/BI_BITFIELDS (Windows default export). Pixel conversion: `color565()` returns little-endian values; SAMD51 DMA (`pushImage()`) sends memory byte-order to the ILI9341 which expects big-endian — rows are byte-swapped with `(c >> 8) | (c << 8)` before the `pushImage()` call. File entries from `entry.name()` return the full FatFS path (`0:/SCRN0001.BMP`); the viewer strips to the bare filename via `strrchr(full, '/')` before calling `SD.open()` (which must not include a leading `/`).

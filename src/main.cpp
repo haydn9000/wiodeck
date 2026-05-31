@@ -8,11 +8,10 @@ TFT_eSprite spr(&tft);
 LCDBackLight backLight;
 
 int maxBrightness;
-static int defaultBrightness = 25;
 char optionTest = 'C';
 
 int menuIndex = 0;
-const char* menuItems[] = { "HOME", "POMODORO", "STOPWATCH", "COUNTDOWN", "CLAUDE", "SYS STATS", "PROCS", "WIFI SCAN", "BLE SCAN", "SD VIEW", "MATRIX", "SETTINGS" };
+const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS", "CLAUDE", "AP SCAN", "BLE SCAN", "MATRIX", "SD VIEW", "SETTINGS" };
 bool menuNeedsRedraw = true;
 bool bleInitDone = false;
 
@@ -26,7 +25,7 @@ void setup()
 
   backLight.initialize();
   maxBrightness = backLight.getMaxBrightness();
-  backLight.setBrightness(defaultBrightness);
+  loadSettings();   // restore saved brightness + volume
 
   // Top 3 button inputs — far right = A, middle = B, left = C.
   // Using INPUT (not PULLUP) as these buttons have external pull-downs on the Wio Terminal.
@@ -89,7 +88,7 @@ void loop()
     while (digitalRead(WIO_KEY_B) == LOW) delay(10);
     takeScreenshot();
   }
-  // Top button A → go directly to brightness settings.
+  // Top button A → open settings menu.
   else if (digitalRead(WIO_KEY_A) == LOW)
   {
     optionTest = 'A';
@@ -99,7 +98,7 @@ void loop()
   switch (optionTest)
   {
     case 'A':
-      setBrightness();
+      settingsScreen();
       optionTest = 'C';
       menuNeedsRedraw = true;
       break;
