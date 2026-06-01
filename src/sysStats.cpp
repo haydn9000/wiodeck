@@ -101,7 +101,7 @@ static uint16_t tempColor(int t)
 // pct = -1 → background arc only (N/A state).
 static void drawGaugeArc(int cx, int cy, int pct, uint16_t fgCol)
 {
-    const uint16_t bgCol = tft.color565(18, 24, 42);   // dark-blue arc track
+    const uint16_t bgCol = tft.color565(0, 45, 75);   // arc track (unfilled)
     const int ri = GR - GT;
 
     bool fullFill  = (pct >= 100);

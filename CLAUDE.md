@@ -2,7 +2,24 @@
 
 ## Project overview
 
-A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with eleven main-menu screens: Pomodoro timer, Stopwatch, Countdown timer, Sys Stats, Process Watch, Claude Usage, AP Scan (WiFi analyser), BLE Scanner, Matrix Rain, SD Card Viewer, and Settings. The Settings screen hosts four sub-screens: Backlight, Volume, Sensor Dashboard (accelerometer/light/mic), and Device Info (MCU specs, memory usage, serial number, firmware build). New screens slot in without touching anything outside `main.cpp`, `menu.cpp`, and `globals.h`.
+A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with twelve main-menu screens grouped by purpose:
+
+| # | Label | Screen |
+|---|-------|--------|
+| 0 | POMODORO | Pomodoro timer |
+| 1 | STOPWATCH | Stopwatch with lap splits |
+| 2 | COUNTDOWN | Countdown timer |
+| 3 | SYS STATS | PC system stats (CPU/RAM/GPU/net) |
+| 4 | PROCS | Top-5 CPU processes |
+| 5 | CLAUDE | Claude API usage |
+| 6 | SONAR | HC-SR04 ultrasonic distance sensor |
+| 7 | AP SCAN | Wi-Fi analyser |
+| 8 | BLE SCAN | BLE device scanner |
+| 9 | MATRIX | Matrix digital rain |
+| 10 | SD VIEW | SD card BMP viewer |
+| 11 | SETTINGS | Settings (backlight / volume / sensors / device info) |
+
+The Settings screen hosts four sub-screens: Backlight, Volume, Sensor Dashboard (accelerometer/light/mic), and Device Info (MCU specs, memory usage, serial number, firmware build). New screens slot in without touching anything outside `main.cpp`, `menu.cpp`, and `globals.h`.
 
 Built with PlatformIO (`atmelsam` platform, `arduino` framework, `seeed_wio_terminal` board).
 
@@ -61,6 +78,7 @@ src/
   sdCardViewer.cpp     — SD card BMP viewer: browse and display 24/32-bit BMP images
   screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCRN####.BMP
   matrixRain.cpp       — Animated Matrix-style digital rain
+  ultrasonicSensor.cpp — Sonar screen: HC-SR04 distance sensor, cyberpunk semicircular arc gauge
   deviceInfo.cpp       — Device info sub-screen: MCU, memory, serial number, firmware build
 include/
   globals.h            — extern declarations and function prototypes for all .cpp files
@@ -118,14 +136,14 @@ Add a label to `menuItems[]` in `main.cpp` (increment `MENU_COUNT` in `globals.h
 ```cpp
 // In main.cpp — menuItems array
 const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS",
-                             "CLAUDE", "AP SCAN", "BLE SCAN", "MATRIX",
-                             "SD VIEW", "SETTINGS", "My Screen" };
+                             "CLAUDE", "SONAR", "AP SCAN", "BLE SCAN",
+                             "MATRIX", "SD VIEW", "SETTINGS", "My Screen" };
 
 // In globals.h — update the count
-constexpr int MENU_COUNT = 12;
+constexpr int MENU_COUNT = 13;
 
 // In menu.cpp — navigation() switch
-case 11: myScreen(); break;
+case 12: myScreen(); break;
 ```
 
 ## Shared infrastructure
@@ -168,6 +186,11 @@ Each sub-screen is a **blocking loop** that returns when the user exits. On retu
 
 ### WiFi + BLE interaction
 The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / `wifi_on()` (called by `WiFi.mode()`) reset the radio coexistence state but do not touch the BLE firmware module. After exiting the WiFi analyser, `bleReinit()` resets `ble_start_flags` so the next BLE operation re-issues `ble_start()`. BLE data screens (Claude, Sys Stats, Process Watch) re-start advertising correctly via the `ble_start()` guard in `bleSetActive(true)`.
+
+### Sonar screen
+`ultrasonicSensor.cpp` drives a **Seeed Grove Ultrasonic Distance Sensor** (SKU 101020010) via the left Grove UART port (TRIG → D1, ECHO → D0). This sensor is 3.3 V/5 V compatible and plugs directly into the Grove connector — use 5 V VCC for full ~400 cm range, 3.3 V caps it at ~150–200 cm. The generic HC-SR04 is **not recommended**: its ECHO line outputs 5 V and the SAMD51 is not 5 V tolerant. If used, fit a 1 kΩ/2 kΩ voltage divider on ECHO or use the HC-SR04+ (3.3 V variant).
+
+The semicircular arc gauge fills clockwise as proximity increases (far = empty, close = full). Zone colours: neon cyan (safe, > 3× threshold), amber (caution, 1–3× threshold), magenta (danger, < threshold). The threshold tick is drawn as a ring-clipped radial line so it never leaves stray pixels outside the arc boundary on redraw. `pulseIn` returns -1 on timeout (nothing in range) — this is normal behaviour with no sensor connected.
 
 ### SD card viewer
 `sdCardViewer.cpp` reads BMP files from the microSD card root. Supported formats: 24-bit BI_RGB and 32-bit BI_RGB/BI_BITFIELDS (Windows default export). Pixel conversion: `color565()` returns little-endian values; SAMD51 DMA (`pushImage()`) sends memory byte-order to the ILI9341 which expects big-endian — rows are byte-swapped with `(c >> 8) | (c << 8)` before the `pushImage()` call. File entries from `entry.name()` return the full FatFS path (`0:/SCRN0001.BMP`); the viewer strips to the bare filename via `strrchr(full, '/')` before calling `SD.open()` (which must not include a leading `/`).

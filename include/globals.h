@@ -12,7 +12,7 @@ extern bool bleInitDone;
 
 // ---- Menu state (defined in main.cpp) ----
 extern int menuIndex;
-constexpr int MENU_COUNT = 11;
+constexpr int MENU_COUNT = 12;
 extern const char* menuItems[];
 extern bool menuNeedsRedraw;
 
@@ -24,7 +24,7 @@ void navigation();
 void sensorsScreen();
 
 // ---- settings.cpp ----
-extern int g_volume;   // 0=mute, 1–4; used by pomodoro and countdown buzzer
+extern int g_volume;   // 0=mute, 1–4; used by pomodoro, countdown, and sonar buzzer
 void drawSettingsHeader(const char* tag);
 void loadSettings();
 void settingsScreen();
@@ -71,6 +71,9 @@ void sdCardViewerScreen();
 
 // ---- wifiAnalyser.cpp ----
 void wifiAnalyserScreen();
+
+// ---- ultrasonicSensor.cpp ----
+void ultrasonicScreen();
 
 // ---- screenshot.cpp ----
 void takeScreenshot();
