@@ -287,7 +287,7 @@ static void drawSysStats()
     tft.drawString("// SYS_STATS", 10, 7);
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 158, 188), tft.color565(0, 8, 20));
-    tft.drawString("LIVE", 289, 12);
+    tft.drawString("LIVE", 160, 11);
 
     // Ticked divider
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 100, 130));

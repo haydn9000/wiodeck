@@ -67,14 +67,14 @@ static void drawWifiHeader(const char* tag, const char* modeLabel, int count = -
     tft.setTextColor(tft.color565(30, 210, 80), tft.color565(0, 8, 20));
     tft.drawString(tag, 10, 7);
     tft.setTextSize(1);
-    if (count >= 0) {
-        char buf[14];
-        snprintf(buf, sizeof(buf), "%d NET%s", count, count == 1 ? "" : "S");
-        tft.setTextColor(tft.color565(20, 148, 60), tft.color565(0, 8, 20));
-        tft.drawString(buf, 250, 12);
-    }
-    tft.setTextColor(tft.color565(0, 100, 40), tft.color565(0, 8, 20));
-    tft.drawString(modeLabel, 208, 12);
+    tft.setTextColor(tft.color565(20, 148, 60), tft.color565(0, 8, 20));
+    // Tag zone: show "count NETS  modeLabel" or just modeLabel, left of battery
+    char tagBuf[24];
+    if (count >= 0)
+        snprintf(tagBuf, sizeof(tagBuf), "%d NET%s  %s", count, count == 1 ? "" : "S", modeLabel);
+    else
+        snprintf(tagBuf, sizeof(tagBuf), "%s", modeLabel);
+    tft.drawString(tagBuf, 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 40));
 }
 
@@ -118,6 +118,7 @@ static void drawWifiScanning()
     tft.drawString("SEARCHING 2.4GHz + 5GHz BANDS", 24, 110);
     tft.drawString("PRESS [C] TO CANCEL", 24, 125);
     drawWifiFooter("[C] CANCEL");
+    drawBatteryStatus(TFT_BLACK);
 }
 
 // ---------------------------------------------------------------------------

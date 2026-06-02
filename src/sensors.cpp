@@ -77,7 +77,7 @@ static void drawSensorsFrame()
     tft.drawString("// SENSORS", 10, 7);
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 158, 188), tft.color565(0, 8, 20));
-    tft.drawString("DASHBOARD", 256, 12);
+    tft.drawString("DASHBOARD", 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 100, 130));
     for (int xi = 8; xi < 320; xi += 14)
         tft.drawFastVLine(xi, 27, 4, tft.color565(0, 155, 185));

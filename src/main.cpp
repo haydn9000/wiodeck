@@ -72,6 +72,11 @@ void loop()
     Serial.println("[ble] ready");
   }
 
+  // Periodic battery cache refresh — reads chip at most once per 30 s.
+  // If the value changed and the menu is visible, queue a redraw so the
+  // updated indicator appears without waiting for a joystick event.
+  if (refreshBatteryCache() && optionTest == 'C') menuNeedsRedraw = true;
+
   // Check for incoming JSON usage data — serial or BLE (both non-blocking).
   checkSerial();
   checkBLE();

@@ -64,7 +64,7 @@ static void drawBleHeader(int found)
         char buf[8]; snprintf(buf, sizeof(buf), "%d", found);
         tft.setTextSize(1);
         tft.setTextColor(tft.color565(0, 148, 170), tft.color565(0, 8, 20));
-        tft.drawString(buf, 285, 12);
+        tft.drawString(buf, 160, 11);
     }
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 100));
     for (int xi = 8; xi < 320; xi += 14)
@@ -102,6 +102,7 @@ static void drawBleScanning()
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 100, 118), TFT_BLACK);
     tft.drawString("[C] CANCEL", 8, 225);
+    drawBatteryStatus(TFT_BLACK);
 }
 
 // -------------------------------------------------------------------------

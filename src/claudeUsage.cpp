@@ -210,10 +210,10 @@ static void drawClaudeUsage()
     tft.fillRect(0, 0, 3, 30, tft.color565(217, 119, 87));          // coral accent bar
     tft.setTextSize(2);
     tft.setTextColor(tft.color565(217, 119, 87), tft.color565(16, 6, 3));
-    tft.drawString("// CLAUDE_USAGE", 10, 7);
+    tft.drawString("// CLAUDE", 10, 7);
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(168, 82, 52), tft.color565(16, 6, 3));
-    tft.drawString("AI USAGE", 258, 12);
+    tft.drawString("AI USAGE", 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(100, 45, 25));
     for (int xi = 8; xi < 320; xi += 14)
         tft.drawFastVLine(xi, 27, 4, tft.color565(155, 72, 40));

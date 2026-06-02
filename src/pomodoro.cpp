@@ -184,7 +184,7 @@ static void drawPomFrame()
     tft.drawString("// POMODORO", 10, 7);
     tft.setTextSize(1);
     tft.setTextColor(acd, hbg);
-    tft.drawString("FOCUS", 281, 12);
+    tft.drawString("FOCUS", 160, 11);
     tft.drawFastHLine(0, 29, 320, acd);
     for (int xi = 8; xi < 320; xi += 14)
         tft.drawFastVLine(xi, 27, 4, ac);

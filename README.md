@@ -19,7 +19,7 @@ A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio
 | **AP Scan** | `wifiAnalyser.cpp` | Wi-Fi analyser — list view (SSID, band, channel, dBm, signal bar) + 2.4 GHz and 5 GHz channel congestion maps. Yellow triangle marks the least-congested non-overlapping channel (1, 6, or 11). | |
 | **BLE Scanner** | `bleScanner.cpp` | Scans for nearby BLE devices and displays RSSI signal strength | |
 | **Matrix Rain** | `matrixRain.cpp` | Animated Matrix-style digital rain | <img src="img/matrix-screen.BMP" width="240"> |
-| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images stored on the microSD card | |
+| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images on the microSD card. Folder picker (KEY_A) lets you switch between directories. Supports 16, 24, and 32-bit BMP. | |
 | **Settings** | `settings.cpp` | Settings menu with four sub-screens: Backlight (brightness), Volume (buzzer level), Sensors (live accelerometer/light/mic dashboard), Device Info (MCU specs, memory, serial number, firmware build). All settings persist to flash. | <img src="img/settings-screen.BMP" width="240"> |
 
 ## Hardware
@@ -84,7 +84,7 @@ wiodeck/
 │   ├── wifiAnalyser.cpp       Wi-Fi analyser (list + 2.4 GHz / 5 GHz channel maps)
 │   ├── bleScanner.cpp         BLE device scanner
 │   ├── sdCardViewer.cpp       SD card BMP viewer
-│   ├── screenshot.cpp         KEY_B: saves screen to microSD as BMP
+│   ├── screenshot.cpp         KEY_B: saves screen to microSD as SCREENSHOTS/SCRN####.BMP
 │   └── matrixRain.cpp         Matrix-style digital rain
 ├── include/
 │   ├── globals.h              extern declarations + function prototypes

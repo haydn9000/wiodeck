@@ -1,7 +1,7 @@
 // screenshot.cpp — Capture the current display to a 24-bit BGR BMP on the SD card.
 //
 // Call takeScreenshot() from any screen's input loop.  [KEY_B] is the convention.
-// Files are saved to the SD root as SCRN0001.BMP, SCRN0002.BMP, … SCRN9999.BMP.
+// Files are saved to SCREENSHOTS/SCRN0001.BMP, … SCRN9999.BMP (folder auto-created).
 //
 // Feedback (backlight blink):
 //   2 blinks = error (no SD card, card full, or file-open failure)
@@ -56,14 +56,16 @@ void takeScreenshot()
 {
     // SD was initialised once in setup(). No SD.begin() needed here.
 
-    // Find the next unused SCRN####.BMP filename.
-    // Do NOT use a leading '/' — FS::exists/open prepend "0:/" themselves,
-    // so "/SCRN0001.BMP" would produce "0://SCRN0001.BMP" which FatFS rejects,
-    // causing exists() to always return false and overwriting the same file.
-    char fname[16];
+    // Ensure SCREENSHOTS directory exists.
+    if (!SD.exists("SCREENSHOTS"))
+        SD.mkdir("SCREENSHOTS");
+
+    // Find the next unused SCREENSHOTS/SCRN####.BMP filename.
+    // Do NOT use a leading '/' — FS::exists/open prepend "0:/" themselves.
+    char fname[28];  // "SCREENSHOTS/SCRN9999.BMP" + null
     bool found = false;
     for (uint16_t i = 1; i <= 9999; i++) {
-        sprintf(fname, "SCRN%04u.BMP", (unsigned)i);
+        sprintf(fname, "SCREENSHOTS/SCRN%04u.BMP", (unsigned)i);
         if (!SD.exists(fname)) { found = true; break; }
     }
     if (!found) { scrnBlink(2); return; }

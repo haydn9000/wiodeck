@@ -135,7 +135,7 @@ static void drawCdFrame()
     tft.drawString("// COUNTDOWN", 10, 7);
     tft.setTextSize(1);
     tft.setTextColor(cdDim(), tft.color565(14, 11, 0));
-    tft.drawString("TIMER", 279, 12);
+    tft.drawString("TIMER", 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(50, 38, 0));
     for (int xi = 8; xi < 320; xi += 14)
         tft.drawFastVLine(xi, 27, 4, tft.color565(100, 75, 0));

@@ -51,8 +51,10 @@ static void drawMenuCell(int i)
 
 void drawMenu()
 {
-  tft.fillScreen(TFT_BLACK);
+  int totalPages = (MENU_COUNT + PAGE_SIZE - 1) / PAGE_SIZE;
+  int curPage    = menuIndex / PAGE_SIZE;
 
+  // ---- Header: overdraw in-place (same content — no visible change) ----
   tft.fillRect(0, 0, 320, 30, tft.color565(0, 8, 20));
   tft.fillRect(0, 0, 3, 30, tft.color565(0, 220, 245));
   tft.setTextSize(2);
@@ -61,23 +63,18 @@ void drawMenu()
   tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 100));
   for (int xi = 8; xi < 320; xi += 14)
     tft.drawFastVLine(xi, 27, 4, tft.color565(0, 140, 165));
-
-  int totalPages = (MENU_COUNT + PAGE_SIZE - 1) / PAGE_SIZE;
-  int curPage    = menuIndex / PAGE_SIZE;
   tft.setTextSize(1);
   tft.setTextColor(tft.color565(0, 148, 170), tft.color565(0, 8, 20));
   if (totalPages > 1) {
     char pgBuf[16];
     snprintf(pgBuf, sizeof(pgBuf), "PG %d/%d", curPage + 1, totalPages);
-    tft.drawString(pgBuf, 272, 12);
+    tft.drawString(pgBuf, 160, 11);
   } else {
-    tft.drawString("NAVIGATE", 257, 12);
+    tft.drawString("NAVIGATE", 160, 11);
   }
 
-  int pageStart = curPage * PAGE_SIZE;
-  int pageEnd   = (pageStart + PAGE_SIZE < MENU_COUNT) ? pageStart + PAGE_SIZE : MENU_COUNT;
-  for (int i = pageStart; i < pageEnd; i++) drawMenuCell(i);
-
+  // ---- Footer: overdraw in-place before clearing content area ----
+  tft.fillRect(0, 219, 320, 21, TFT_BLACK);
   tft.fillRect(0, 219, 3, 21, tft.color565(0, 220, 245));
   tft.setTextSize(1);
   tft.setTextColor(tft.color565(0, 100, 118), TFT_BLACK);
@@ -86,7 +83,13 @@ void drawMenu()
   else
     tft.drawString("[UP/DN] ROW   [L/R] COL   [PRESS] SELECT", 8, 225);
 
-  drawBatteryStatus(TFT_BLACK);
+  drawBatteryStatus(tft.color565(0, 8, 20));
+
+  // ---- Content area: fill only the cell region, then draw cells ----
+  tft.fillRect(0, 30, 320, 189, TFT_BLACK);
+  int pageStart = curPage * PAGE_SIZE;
+  int pageEnd   = (pageStart + PAGE_SIZE < MENU_COUNT) ? pageStart + PAGE_SIZE : MENU_COUNT;
+  for (int i = pageStart; i < pageEnd; i++) drawMenuCell(i);
 }
 
 void navigation()

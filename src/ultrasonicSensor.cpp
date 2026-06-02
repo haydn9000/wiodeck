@@ -360,13 +360,14 @@ static void drawAlertRow(bool active)
 // -------------------------------------------------------------------------
 static void drawPingCount()
 {
-    tft.fillRect(218, 5, 98, 20, tft.color565(0, 8, 20));
+    // Tag zone: x=156..239, y=3..24 — stays clear of the battery widget at x=244+
+    tft.fillRect(156, 3, 82, 24, tft.color565(0, 8, 20));
     char buf[20];
     snprintf(buf, sizeof(buf), "PING %05lu", (unsigned long)pingCount);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(tft.color565(0, 80, 100), tft.color565(0, 8, 20));
-    tft.drawString(buf, 220, 12);
+    tft.drawString(buf, 160, 11);
 }
 
 // -------------------------------------------------------------------------
@@ -472,6 +473,7 @@ void ultrasonicScreen()
     uint32_t lastMeasMs = 0;
 
     drawSonarChrome();
+    drawBatteryStatus(tft.color565(0, 8, 20));
     drawSonarReadout(-1.0f);
     drawMinMax();
     drawAlertRow(false);

@@ -42,8 +42,8 @@ void deviceInfoScreen()
     uint32_t upS        = upSec % 60;
 
     // --- Draw ---
-    tft.fillScreen(TFT_BLACK);
-    drawSettingsHeader("INFO");
+    tft.fillRect(0, 30, 320, 190, TFT_BLACK);
+    updateSettingsTag("INFO");
 
     const uint16_t secCol = tft.color565(0, 175, 200);
     const uint16_t lblCol = tft.color565(60, 95, 108);

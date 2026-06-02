@@ -75,8 +75,8 @@ src/
   processWatch.cpp     — Top-5 CPU processes by usage, fed via process_sender.py
   wifiAnalyser.cpp    — Wi-Fi analyser: list view (SSID/band/ch/dBm) + 2.4 GHz and 5 GHz channel maps
   bleScanner.cpp       — BLE device scanner: nearby devices + RSSI bars
-  sdCardViewer.cpp     — SD card BMP viewer: browse and display 24/32-bit BMP images
-  screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCRN####.BMP
+  sdCardViewer.cpp     — SD card BMP viewer: folder picker, browse and display 16/24/32-bit BMP images
+  screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCREENSHOTS/SCRN####.BMP
   matrixRain.cpp       — Animated Matrix-style digital rain
   ultrasonicSensor.cpp — Sonar screen: HC-SR04 distance sensor, cyberpunk semicircular arc gauge
   deviceInfo.cpp       — Device info sub-screen: MCU, memory, serial number, firmware build
@@ -193,7 +193,11 @@ The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / 
 The semicircular arc gauge fills clockwise as proximity increases (far = empty, close = full). Zone colours: neon cyan (safe, > 3× threshold), amber (caution, 1–3× threshold), magenta (danger, < threshold). The threshold tick is drawn as a ring-clipped radial line so it never leaves stray pixels outside the arc boundary on redraw. `pulseIn` returns -1 on timeout (nothing in range) — this is normal behaviour with no sensor connected.
 
 ### SD card viewer
-`sdCardViewer.cpp` reads BMP files from the microSD card root. Supported formats: 24-bit BI_RGB and 32-bit BI_RGB/BI_BITFIELDS (Windows default export). Pixel conversion: `color565()` returns little-endian values; SAMD51 DMA (`pushImage()`) sends memory byte-order to the ILI9341 which expects big-endian — rows are byte-swapped with `(c >> 8) | (c << 8)` before the `pushImage()` call. File entries from `entry.name()` return the full FatFS path (`0:/SCRN0001.BMP`); the viewer strips to the bare filename via `strrchr(full, '/')` before calling `SD.open()` (which must not include a leading `/`).
+`sdCardViewer.cpp` reads BMP files from any folder on the microSD card. On entry a **folder picker** lists all non-system directories (plus `/ (root)`) — navigate with joystick UP/DOWN, confirm with PRESS or RIGHT; KEY_A returns to the picker from the image viewer.
+
+Supported formats: 16-bit BI_RGB (RGB555) and BI_BITFIELDS (RGB565, detected via colour masks), 24-bit BI_RGB, 32-bit BI_RGB/BI_BITFIELDS (Windows default export). Pixel conversion: `color565()` returns little-endian values; SAMD51 DMA (`pushImage()`) sends memory byte-order to the ILI9341 which expects big-endian — rows are byte-swapped with `(c >> 8) | (c << 8)` before the `pushImage()` call. File entries from `entry.name()` return the full FatFS path (`0:/SCRN0001.BMP`); the viewer strips to the bare filename via `strrchr(full, '/')` before building the open path (which must not include a leading `/`).
+
+Windows system folders (`System Volume Information`, `RECYCLER`, `$RECYCLE.BIN`, dot-prefixed entries) are silently excluded from the folder list.
 
 ### Battery detection
 The SAMD51 Wire bus can return a false ACK on the first probe. `batteryBegin()` follows the address probe with an actual register read to confirm the BQ27441 is present. Returns false silently on hardware without the compatible chassis — `drawBatteryStatus()` becomes a no-op.

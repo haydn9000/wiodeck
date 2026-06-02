@@ -26,6 +26,7 @@ void sensorsScreen();
 // ---- settings.cpp ----
 extern int g_volume;   // 0=mute, 1–4; used by pomodoro, countdown, and sonar buzzer
 void drawSettingsHeader(const char* tag);
+void updateSettingsTag(const char* tag);
 void loadSettings();
 void settingsScreen();
 
@@ -34,8 +35,16 @@ void deviceInfoScreen();
 
 // ---- battery.cpp ----
 bool batteryBegin();
+bool batteryPresent();
 bool batteryCharging();
+bool refreshBatteryCache();   // time-gated I2C read (30-s); returns true if changed
 int batteryLevel();
+int batteryVoltage();
+int batteryCurrent();
+int batteryRemaining();
+int batteryFullCapacity();
+int batteryPower();
+int batteryHealth();
 void drawBatteryStatus(uint16_t bgColor);
 
 // ---- claudeUsage.cpp ----
