@@ -12,7 +12,7 @@ extern bool bleInitDone;
 
 // ---- Menu state (defined in main.cpp) ----
 extern int menuIndex;
-constexpr int MENU_COUNT = 13;
+constexpr int MENU_COUNT = 14;
 extern const char* menuItems[];
 extern bool menuNeedsRedraw;
 
@@ -25,6 +25,7 @@ void sensorsScreen();
 
 // ---- settings.cpp ----
 extern int g_volume;   // 0=mute, 1–4; used by pomodoro, countdown, and sonar buzzer
+extern int g_tempUnit; // 0=Celsius, 1=Fahrenheit
 void drawSettingsHeader(const char* tag);
 void updateSettingsTag(const char* tag);
 void loadSettings();
@@ -83,6 +84,9 @@ void wifiAnalyserScreen();
 
 // ---- robotEyes.cpp ----
 void robotEyesScreen();
+
+// ---- tempHumidity.cpp ----
+void tempHumidityScreen();
 
 // ---- ultrasonicSensor.cpp ----
 void ultrasonicScreen();

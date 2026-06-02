@@ -182,76 +182,74 @@ static void drawPomFrame()
     tft.setTextSize(2);
     tft.setTextColor(ac, hbg);
     tft.drawString("// POMODORO", 10, 7);
-    tft.setTextSize(1);
-    tft.setTextColor(acd, hbg);
-    tft.drawString("FOCUS", 160, 11);
     tft.drawFastHLine(0, 29, 320, acd);
     for (int xi = 8; xi < 320; xi += 14)
         tft.drawFastVLine(xi, 27, 4, ac);
 
-    // --- Phase name + cycle dots ---
-    tft.setTextSize(1);
+    // --- Phase name (size 2, prominent) + session label ---
+    tft.setTextSize(2);
     tft.setTextColor(ac, TFT_BLACK);
-    tft.drawString(pomPhaseName(), 12, 35);
+    tft.drawString(pomPhaseName(), 10, 36);
 
-    // 4 cycle dots on the right (filled = completed work sessions)
-    for (int d = 0; d < POM_CYCLE; d++) {
-        int dx = 216 + d * 17;
-        if (d < pomCount)
-            tft.fillRect(dx, 33, 10, 10, ac);
-        else
-            tft.drawRect(dx, 33, 10, 10, acd);
-    }
-
-    // Session or break label
     tft.setTextSize(1);
     tft.setTextColor(acd, TFT_BLACK);
     if (pomPhase == POM_WORK) {
         char sb[24]; sprintf(sb, "SESSION %d OF %d", pomCount + 1, POM_CYCLE);
-        tft.drawString(sb, 12, 47);
+        tft.drawString(sb, 10, 56);
     } else {
-        tft.drawString(pomPhase == POM_SHORT ? "5 MIN RECHARGE" : "15 MIN RECHARGE", 12, 47);
+        tft.drawString(pomPhase == POM_SHORT ? "5 MIN RECHARGE" : "15 MIN RECHARGE", 10, 56);
     }
 
-    // --- Big countdown (timer is drawn by drawPomTick) ---
-    // placeholder space: y=58 to y=90 (size 4, 32 px tall)
+    // --- Big countdown placeholder (drawn by drawPomTick: size 7, TC_DATUM, y=68) ---
 
     // --- Progress bar outline (fill updated incrementally by drawPomTick) ---
-    tft.fillRect(10, 100, 300, 10, TFT_BLACK);   // clear interior
-    tft.drawRect( 9,  99, 302, 12, acd);          // border 1 px outside fill area
+    tft.fillRect(10, 132, 300, 14, TFT_BLACK);   // clear interior
+    tft.drawRect( 9, 131, 302, 16, acd);          // border 1 px outside fill area
     pomPrevFill = -1;                             // force fresh fill on first tick
 
     // --- Divider ---
-    tft.drawFastHLine(0, 116, 320, acd);
-    tft.drawFastVLine(0,   116, 1, ac);
-    tft.drawFastVLine(319, 116, 1, ac);
+    tft.drawFastHLine(0, 152, 320, acd);
 
     // --- Next phase hint ---
     tft.setTextSize(1);
     tft.setTextColor(acd, TFT_BLACK);
     char nb[32]; sprintf(nb, "NEXT:  %s", pomNextPhaseName());
-    tft.drawString(nb, 12, 124);
+    tft.drawString(nb, 10, 158);
 
-    // --- Status prompt ---
+    // --- Status prompt (also refreshed by drawPomStatus on pause/resume) ---
     tft.setTextSize(1);
     if (pomRunning) {
         tft.setTextColor(ac, TFT_BLACK);
-        tft.drawString(">> TIMER RUNNING", 12, 140);
+        tft.drawString(">> TIMER RUNNING", 10, 172);
     } else if (pomElapMs > 0) {
         tft.setTextColor(tft.color565(210, 175, 0), TFT_BLACK);
-        tft.drawString("|| PAUSED — PRESS TO RESUME", 12, 140);
+        tft.drawString("|| PAUSED — PRESS TO RESUME", 10, 172);
     } else {
         tft.setTextColor(acd, TFT_BLACK);
-        tft.drawString("PRESS TO BEGIN", 12, 140);
+        tft.drawString("PRESS TO BEGIN", 10, 172);
+    }
+
+    // --- Session cycle indicator (bottom, large blocks) ---
+    tft.setTextSize(1);
+    tft.setTextColor(acd, TFT_BLACK);
+    tft.drawString("CYCLE", 10, 190);
+    for (int d = 0; d < POM_CYCLE; d++) {
+        int dx = 102 + d * 32;
+        if (d < pomCount)
+            tft.fillRect(dx, 199, 20, 12, ac);
+        else
+            tft.drawRect(dx, 199, 20, 12, acd);
     }
 
     // --- Footer ---
+    tft.fillRect(0, 219, 320, 21, TFT_BLACK);
     tft.fillRect(0, 219, 3, 21, ac);
+    tft.drawFastHLine(0, 219, 320, acd);
     tft.setTextSize(1);
     tft.setTextColor(pomFooterColor(), TFT_BLACK);
-    tft.drawString("[PRESS] RUN/STOP  [L] SKIP  [R] RESET  [C] BACK", 8, 225);
+    tft.drawString("[PRESS] RUN/STOP  [L] SKIP  [R] RESET  [C] BACK", 8, 227);
 
-    drawBatteryStatus(TFT_BLACK);
+    drawBatteryStatus(hbg);
 }
 
 // -------------------------------------------------------------------------
@@ -260,14 +258,16 @@ static void drawPomTick()
     uint16_t ac  = pomAccent();
     uint32_t tl  = pomTimeLeft();
 
-    // Big countdown — "MM:SS" (5 chars at size 4 ≈ 125 px → centre x=98)
+    // Big countdown — "MM:SS" centred, size 7 (56 px tall, y=68–124)
     char buf[8]; pomFormat(buf, tl);
     if (strcmp(buf, pomPrevBuf) != 0 || !pomRunning) {
         strcpy(pomPrevBuf, buf);
         uint16_t tc = pomRunning ? ac : tft.color565(175, 200, 210);
-        tft.setTextSize(4);
+        tft.setTextDatum(TC_DATUM);
+        tft.setTextSize(7);
         tft.setTextColor(tc, TFT_BLACK);
-        tft.drawString(buf, 98, 58);
+        tft.drawString(buf, 160, 68);
+        tft.setTextDatum(TL_DATUM);
     }
 
     // Progress bar — incremental repaint; border already drawn in drawPomFrame().
@@ -282,10 +282,10 @@ static void drawPomTick()
         // Bar grew: paint only the new segment
         int x = (pomPrevFill < 0) ? 10 : 10 + pomPrevFill;
         int w = (pomPrevFill < 0) ? fill : fill - pomPrevFill;
-        if (w > 0) tft.fillRect(x, 100, w, 10, ac);
+        if (w > 0) tft.fillRect(x, 132, w, 14, ac);
     } else if (fill < pomPrevFill) {
         // Bar shrank (reset / phase change): erase the vacated segment
-        tft.fillRect(10 + fill, 100, pomPrevFill - fill, 10, TFT_BLACK);
+        tft.fillRect(10 + fill, 132, pomPrevFill - fill, 14, TFT_BLACK);
     }
     pomPrevFill = fill;
 }
@@ -294,17 +294,17 @@ static void drawPomTick()
 // Updates only the status badge — avoids fillScreen flicker on pause/unpause.
 static void drawPomStatus()
 {
-    tft.fillRect(0, 136, 320, 16, TFT_BLACK);
+    tft.fillRect(0, 168, 320, 16, TFT_BLACK);
     tft.setTextSize(1);
     if (pomRunning) {
         tft.setTextColor(pomAccent(), TFT_BLACK);
-        tft.drawString(">> TIMER RUNNING", 12, 140);
+        tft.drawString(">> TIMER RUNNING", 10, 172);
     } else if (pomElapMs > 0) {
         tft.setTextColor(tft.color565(210, 175, 0), TFT_BLACK);
-        tft.drawString("|| PAUSED \u2014 PRESS TO RESUME", 12, 140);
+        tft.drawString("|| PAUSED — PRESS TO RESUME", 10, 172);
     } else {
         tft.setTextColor(pomAccentDim(), TFT_BLACK);
-        tft.drawString("PRESS TO BEGIN", 12, 140);
+        tft.drawString("PRESS TO BEGIN", 10, 172);
     }
 }
 

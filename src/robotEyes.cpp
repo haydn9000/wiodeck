@@ -89,11 +89,11 @@ static void drawEyeSprite(EyeState state, bool flipX)
             darkGlow = tft.color565(  0,  12,   3);
             break;
         case EYE_SHOCK:
-            rimCol   = tft.color565(185, 120,   0);
-            irisBase = tft.color565(110,  45,   0);
-            irisHi   = tft.color565(185,  95,   0);
-            glowCol  = tft.color565( 45,  18,   0);
-            darkGlow = tft.color565( 18,   6,   0);
+            rimCol   = tft.color565(255, 175,   0);
+            irisBase = tft.color565(140,  55,   0);
+            irisHi   = tft.color565(255, 130,   0);
+            glowCol  = tft.color565( 80,  28,   0);
+            darkGlow = tft.color565( 30,   8,   0);
             break;
         default: // IDLE
             rimCol   = tft.color565(  0, 110, 140);
@@ -271,8 +271,13 @@ static void drawBackground()
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 110, 145), BG);
     tft.drawString("UNIT-7 // OPTICAL ARRAY", 8, 8);
-    tft.setTextColor(tft.color565(0, 65, 90), BG);
-    tft.drawString("[C] BACK", 262, 8);
+
+    // Footer — matches all other screens
+    tft.fillRect(0, 219, 320, 21, TFT_BLACK);
+    tft.fillRect(0, 219, 3, 21, tft.color565(0, 110, 140));
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 65, 90), TFT_BLACK);
+    tft.drawString("[C] BACK", 8, 227);
 
     // Nose bridge (x = 160, safely between the two sprites)
     int mx       = 160;
@@ -298,7 +303,7 @@ static uint16_t stateRimCol(EyeState s) {
     switch (s) {
         case EYE_CURIOUS: return tft.color565(  0, 160, 185);
         case EYE_ALERT:   return tft.color565( 50, 180,  50);
-        case EYE_SHOCK:   return tft.color565(185, 120,   0);
+        case EYE_SHOCK:   return tft.color565(255, 175,   0);
         default:          return tft.color565(  0, 110, 140);
     }
 }
@@ -306,7 +311,7 @@ static uint16_t stateGlowCol(EyeState s) {
     switch (s) {
         case EYE_CURIOUS: return tft.color565(  0,  40,  60);
         case EYE_ALERT:   return tft.color565(  0,  32,   8);
-        case EYE_SHOCK:   return tft.color565( 45,  18,   0);
+        case EYE_SHOCK:   return tft.color565( 80,  28,   0);
         default:          return tft.color565(  0,  28,  42);
     }
 }
@@ -375,8 +380,8 @@ static void drawShockGlitch()
     // fully overwritten when the sprites are pushed — no persistent artefacts.
     // Left sprite:  x = 0..147   Right sprite: x = 173..319
     // Both cover:   y = 45..194
-    uint16_t gc = tft.color565(255, 175, 0);
-    uint16_t wc = tft.color565(255, 220, 140);
+    uint16_t gc = tft.color565(255, 190,   0);
+    uint16_t wc = tft.color565(255, 240, 100);
     for (int g = 0; g < 5; g++) {
         // alternate between left and right eye region
         int rx = (g % 2 == 0) ? random(0, 120) : random(173, 300);

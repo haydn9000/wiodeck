@@ -15,12 +15,14 @@ A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio
 | **Sys Stats** | `sysStats.cpp` | Arc gauges for CPU, RAM, GPU, VRAM usage + temperatures and network bandwidth, fed over USB serial or BLE | <img src="img/sysstats-screen.BMP" width="240"> |
 | **Process Watch** | `processWatch.cpp` | Top-5 CPU processes by usage, fed over USB serial or BLE | <img src="img/processes-screen.BMP" width="240"> |
 | **Claude Usage** | `claudeUsage.cpp` | Displays session (5h) and weekly (7d) Claude API utilisation, fed over USB serial or BLE | <img src="img/claude-usage-screen.BMP" width="240"> |
-| **Sonar** | `ultrasonicSensor.cpp` | [Seeed Grove Ultrasonic Distance Sensor](https://wiki.seeedstudio.com/Grove-Ultrasonic_Ranger/) — semicircular arc gauge with proximity zones (cyan/amber/magenta), configurable alert threshold, parking-sensor beeps, MIN/MAX tracker. | |
+| **Sonar** | `ultrasonicSensor.cpp` | [Seeed Grove Ultrasonic Distance Sensor](https://wiki.seeedstudio.com/Grove-Ultrasonic_Ranger/) — semicircular arc gauge with proximity zones (cyan/amber/magenta), configurable alert threshold, parking-sensor beeps, MIN/MAX tracker. **Left Grove port** (TRIG→D1, ECHO→D0). | |
 | **AP Scan** | `wifiAnalyser.cpp` | Wi-Fi analyser — list view (SSID, band, channel, dBm, signal bar) + 2.4 GHz and 5 GHz channel congestion maps. Yellow triangle marks the least-congested non-overlapping channel (1, 6, or 11). | |
 | **BLE Scanner** | `bleScanner.cpp` | Scans for nearby BLE devices and displays RSSI signal strength | |
 | **Matrix Rain** | `matrixRain.cpp` | Animated Matrix-style digital rain | <img src="img/matrix-screen.BMP" width="240"> |
+| **Robot Eyes** | `robotEyes.cpp` | Sound-reactive animated robot face — 4 states (IDLE/CURIOUS/ALERT/SHOCK) driven by mic amplitude. | |
+| **Temp + Humidity** | `tempHumidity.cpp` | [Grove DHT11](https://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/) temperature & humidity sensor — colour-coded readings, 2 s refresh. Displays °C or °F based on the Temp Unit setting. **Right Grove port** (data→A0). | |
 | **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images on the microSD card. Folder picker (KEY_A) lets you switch between directories. Supports 16, 24, and 32-bit BMP. | |
-| **Settings** | `settings.cpp` | Settings menu with four sub-screens: Backlight (brightness), Volume (buzzer level), Sensors (live accelerometer/light/mic dashboard), Device Info (MCU specs, memory, serial number, firmware build). All settings persist to flash. | <img src="img/settings-screen.BMP" width="240"> |
+| **Settings** | `settings.cpp` | Settings menu with six sub-screens across two pages — **Page 0:** Backlight (brightness), Volume (buzzer level), Temp Unit (°C/°F); **Page 1:** Sensors (live accelerometer/light/mic dashboard), Battery (SoC, voltage, current, health), Device Info (MCU specs, memory, serial number, firmware build). All settings persist to flash. | <img src="img/settings-screen.BMP" width="240"> |
 
 ## Hardware
 
@@ -85,6 +87,8 @@ wiodeck/
 │   ├── bleScanner.cpp         BLE device scanner
 │   ├── sdCardViewer.cpp       SD card BMP viewer
 │   ├── screenshot.cpp         KEY_B: saves screen to microSD as SCREENSHOTS/SCRN####.BMP
+│   ├── robotEyes.cpp          Sound-reactive robot eyes (4 states, mic-driven)
+│   ├── tempHumidity.cpp       Grove DHT11 temperature & humidity screen
 │   └── matrixRain.cpp         Matrix-style digital rain
 ├── include/
 │   ├── globals.h              extern declarations + function prototypes

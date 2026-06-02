@@ -2,7 +2,7 @@
 
 ## Project overview
 
-A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with twelve main-menu screens grouped by purpose:
+A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with a single blocking function; the joystick-navigated menu wires them together. Currently ships with fourteen main-menu screens grouped by purpose:
 
 | # | Label | Screen |
 |---|-------|--------|
@@ -13,13 +13,15 @@ A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with
 | 4 | PROCS | Top-5 CPU processes |
 | 5 | CLAUDE | Claude API usage |
 | 6 | SONAR | HC-SR04 ultrasonic distance sensor |
-| 7 | AP SCAN | Wi-Fi analyser |
-| 8 | BLE SCAN | BLE device scanner |
-| 9 | MATRIX | Matrix digital rain |
-| 10 | SD VIEW | SD card BMP viewer |
-| 11 | SETTINGS | Settings (backlight / volume / sensors / device info) |
+| 7 | TEMP HUM | Grove DHT11 temperature & humidity |
+| 8 | AP SCAN | Wi-Fi analyser |
+| 9 | BLE SCAN | BLE device scanner |
+| 10 | MATRIX | Matrix digital rain |
+| 11 | ROBO EYE | Sound-reactive robot eyes |
+| 12 | SD VIEW | SD card BMP viewer |
+| 13 | SETTINGS | Settings (backlight / volume / temp unit / sensors / battery / device info) |
 
-The Settings screen hosts four sub-screens: Backlight, Volume, Sensor Dashboard (accelerometer/light/mic), and Device Info (MCU specs, memory usage, serial number, firmware build). New screens slot in without touching anything outside `main.cpp`, `menu.cpp`, and `globals.h`.
+The Settings screen hosts six sub-screens across two pages — **Page 0:** Backlight, Volume, Temp Unit (°C/°F); **Page 1:** Sensors (live accelerometer/light/mic dashboard), Battery (BQ27441 SoC/voltage/current/health), Device Info (MCU specs, memory usage, serial number, firmware build). All settings persist to flash. New screens slot in without touching anything outside `main.cpp`, `menu.cpp`, and `globals.h`.
 
 Built with PlatformIO (`atmelsam` platform, `arduino` framework, `seeed_wio_terminal` board).
 
@@ -64,7 +66,7 @@ src/
   main.cpp             — Global definitions, setup(), loop(), top-level screen dispatch
   menu.cpp             — Main menu render + joystick navigation; register new screens here
   sensors.cpp          — Sensor dashboard (accelerometer, light sensor, microphone)
-  settings.cpp         — Settings menu (backlight / volume / sensors / device-info sub-screens); persists to flash
+  settings.cpp         — Settings menu (backlight / volume / temp unit / sensors / battery / device-info sub-screens); persists to flash
   battery.cpp          — BQ27441-G1A I²C driver + drawBatteryStatus() overlay
   bluetooth.cpp        — BLE GATT peripheral (WT-001); deferred init, on-demand advertising
   claudeUsage.cpp      — Claude Usage screen: JSON parser, serial reader, usage display
@@ -79,6 +81,8 @@ src/
   screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCREENSHOTS/SCRN####.BMP
   matrixRain.cpp       — Animated Matrix-style digital rain
   ultrasonicSensor.cpp — Sonar screen: HC-SR04 distance sensor, cyberpunk semicircular arc gauge
+  robotEyes.cpp        — Sound-reactive robot eyes: 4 states (IDLE/CURIOUS/ALERT/SHOCK) driven by mic amplitude, sprite-buffered, arc mouth
+  tempHumidity.cpp     — Grove DHT11 temperature & humidity screen: colour-coded readings, 2 s refresh, right Grove A0; honours g_tempUnit (°C/°F)
   deviceInfo.cpp       — Device info sub-screen: MCU, memory, serial number, firmware build
 include/
   globals.h            — extern declarations and function prototypes for all .cpp files
@@ -136,14 +140,14 @@ Add a label to `menuItems[]` in `main.cpp` (increment `MENU_COUNT` in `globals.h
 ```cpp
 // In main.cpp — menuItems array
 const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS",
-                             "CLAUDE", "SONAR", "AP SCAN", "BLE SCAN",
-                             "MATRIX", "SD VIEW", "SETTINGS", "My Screen" };
+                             "CLAUDE", "SONAR", "TEMP HUM", "AP SCAN", "BLE SCAN",
+                             "MATRIX", "ROBO EYE", "SD VIEW", "SETTINGS", "My Screen" };
 
 // In globals.h — update the count
-constexpr int MENU_COUNT = 13;
+constexpr int MENU_COUNT = 15;
 
 // In menu.cpp — navigation() switch
-case 12: myScreen(); break;
+case 14: myScreen(); break;
 ```
 
 ## Shared infrastructure
@@ -188,9 +192,14 @@ Each sub-screen is a **blocking loop** that returns when the user exits. On retu
 The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / `wifi_on()` (called by `WiFi.mode()`) reset the radio coexistence state but do not touch the BLE firmware module. After exiting the WiFi analyser, `bleReinit()` resets `ble_start_flags` so the next BLE operation re-issues `ble_start()`. BLE data screens (Claude, Sys Stats, Process Watch) re-start advertising correctly via the `ble_start()` guard in `bleSetActive(true)`.
 
 ### Sonar screen
-`ultrasonicSensor.cpp` drives a **Seeed Grove Ultrasonic Distance Sensor** (SKU 101020010) via the left Grove UART port (TRIG → D1, ECHO → D0). This sensor is 3.3 V/5 V compatible and plugs directly into the Grove connector — use 5 V VCC for full ~400 cm range, 3.3 V caps it at ~150–200 cm. The generic HC-SR04 is **not recommended**: its ECHO line outputs 5 V and the SAMD51 is not 5 V tolerant. If used, fit a 1 kΩ/2 kΩ voltage divider on ECHO or use the HC-SR04+ (3.3 V variant).
+`ultrasonicSensor.cpp` drives a **Seeed Grove Ultrasonic Distance Sensor** (SKU 101020010) via the **left Grove UART port** (TRIG → D1, ECHO → D0). This sensor is 3.3 V/5 V compatible and plugs directly into the Grove connector — use 5 V VCC for full ~400 cm range, 3.3 V caps it at ~150–200 cm. The generic HC-SR04 is **not recommended**: its ECHO line outputs 5 V and the SAMD51 is not 5 V tolerant. If used, fit a 1 kΩ/2 kΩ voltage divider on ECHO or use the HC-SR04+ (3.3 V variant).
 
 The semicircular arc gauge fills clockwise as proximity increases (far = empty, close = full). Zone colours: neon cyan (safe, > 3× threshold), amber (caution, 1–3× threshold), magenta (danger, < threshold). The threshold tick is drawn as a ring-clipped radial line so it never leaves stray pixels outside the arc boundary on redraw. `pulseIn` returns -1 on timeout (nothing in range) — this is normal behaviour with no sensor connected.
+
+### Temp + Humidity screen
+`tempHumidity.cpp` reads a **[Grove DHT11](https://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/)** sensor on the **right Grove port** (data → A0). Displays temperature (°C) and humidity (%) with colour-coded value bands in two centred panels; readings refresh every 2 seconds. The right Grove port is used by default to keep D0/D1 free for Sonar — but since both screens are never active simultaneously, the DHT11 can alternatively be wired to the left Grove port (data → D0) by changing `#define DHT_PIN` in `tempHumidity.cpp`.
+
+The sensor source tag (`DHT11 / A0`) is placed in the header at x=155 to stay clear of the battery indicator (which occupies x≥244). The error state uses a three-tier layout — size-3 `READ ERROR` heading, size-2 pin hint, size-1 port detail — so a missing sensor is immediately visible.
 
 ### SD card viewer
 `sdCardViewer.cpp` reads BMP files from any folder on the microSD card. On entry a **folder picker** lists all non-system directories (plus `/ (root)`) — navigate with joystick UP/DOWN, confirm with PRESS or RIGHT; KEY_A returns to the picker from the image viewer.

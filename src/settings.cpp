@@ -4,20 +4,23 @@
 
 // ---- Persistent settings storage --------------------------------------------
 // Flash layout (byte offsets):
-//   0  SETTINGS_MAGIC  uint16_t  — 0xBE76 distinguishes written from blank flash
+//   0  SETTINGS_MAGIC  uint16_t  — 0xBE77 distinguishes written from blank flash
 //   2  brightness      int       — 5..100 in steps of 5
 //   6  volume          int       — 0 (mute) to 4
-static const uint16_t SETTINGS_MAGIC = 0xBE76;
+//  10  tempUnit        int       — 0=Celsius, 1=Fahrenheit
+static const uint16_t SETTINGS_MAGIC = 0xBE77;
 
 static int brightness  = 25;
 static const int MIN_BRIGHTNESS = 5;
-int g_volume = 3;   // 0=mute, 1–4 (defined here, extern in globals.h)
+int g_volume   = 3;   // 0=mute, 1–4 (defined here, extern in globals.h)
+int g_tempUnit = 0;   // 0=Celsius, 1=Fahrenheit (defined here, extern in globals.h)
 
 static void saveSettings()
 {
     EEPROM.put(0, SETTINGS_MAGIC);
     EEPROM.put(2, brightness);
     EEPROM.put(6, g_volume);
+    EEPROM.put(10, g_tempUnit);
     EEPROM.commit();
 }
 
@@ -26,14 +29,17 @@ void loadSettings()
     uint16_t magic;
     EEPROM.get(0, magic);
     if (magic == SETTINGS_MAGIC) {
-        int b, v;
+        int b, v, u;
         EEPROM.get(2, b);
         EEPROM.get(6, v);
+        EEPROM.get(10, u);
         brightness = (b >= MIN_BRIGHTNESS && b <= 100) ? b : 25;
         g_volume   = (v >= 0 && v <= 4) ? v : 3;
+        g_tempUnit = (u == 0 || u == 1) ? u : 0;
     } else {
         brightness = 25;
         g_volume   = 3;
+        g_tempUnit = 0;
     }
     backLight.setBrightness(brightness);
 }
@@ -249,6 +255,64 @@ static void volumeSubScreen()
             saveSettings();
             return;
         }
+    }
+}
+
+// ============================================================================
+// TEMP UNIT SUB-SCREEN
+// ============================================================================
+
+static void refreshTempUnitDisplay()
+{
+    tft.fillRect(0, 52, 320, 64, TFT_BLACK);
+    uint16_t col = (g_tempUnit == 0) ? tft.color565(0, 210, 235) : tft.color565(255, 160, 40);
+    const char* lbl = (g_tempUnit == 0) ? "CELSIUS" : "FAHRENHEIT";
+    tft.setTextSize(4);
+    tft.setTextColor(col, TFT_BLACK);
+    tft.drawString(lbl, (320 - tft.textWidth(lbl)) / 2, 55);
+    drawSegBar(30, 140, 260, 26, 2, g_tempUnit + 1, col);
+}
+
+static void tempUnitSubScreen()
+{
+    tft.fillRect(0, 30, 320, 210, TFT_BLACK);
+    updateSettingsTag("TEMP UNIT");
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 130, 155), TFT_BLACK);
+    tft.drawString("TEMPERATURE SCALE", 109, 36);
+    tft.drawFastHLine(60, 116, 200, tft.color565(0, 45, 65));
+    drawCornerBrackets(26, 136, 268, 34, 12, tft.color565(0, 160, 190));
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 148, 170), TFT_BLACK);
+    tft.drawString("C", 34, 140 + 26 + 8);
+    tft.drawString("F", 278, 140 + 26 + 8);
+    tft.fillRect(0, 219, 3, 21, tft.color565(0, 200, 230));
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 100, 118), TFT_BLACK);
+    tft.drawString("[<][>] TOGGLE     [PRESS] / [C] BACK", 8, 225);
+    refreshTempUnitDisplay();
+    drawBatteryStatus(TFT_BLACK);
+
+    while (digitalRead(WIO_5S_PRESS) == LOW) delay(10);
+    delay(50);
+
+    while (true)
+    {
+        if (digitalRead(WIO_5S_RIGHT) == LOW || digitalRead(WIO_5S_LEFT) == LOW) {
+            g_tempUnit = 1 - g_tempUnit;
+            refreshTempUnitDisplay();
+            while (digitalRead(WIO_5S_RIGHT) == LOW || digitalRead(WIO_5S_LEFT) == LOW) delay(10);
+            delay(100);
+        } else if (digitalRead(WIO_KEY_B) == LOW) {
+            while (digitalRead(WIO_KEY_B) == LOW) delay(10);
+            takeScreenshot();
+        } else if (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_KEY_C) == LOW) {
+            while (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_KEY_C) == LOW) delay(10);
+            delay(50);
+            saveSettings();
+            return;
+        }
+        delay(10);
     }
 }
 
@@ -487,9 +551,9 @@ static void batteryInfoScreen()
 //  Page dots are shown in the footer.
 // ============================================================================
 
-static const int NUM_SETTINGS  = 5;
-static const int S_PAGE0_COUNT = 3;   // items on page 0 (items 0,1,2)
-// items 3,4 live on page 1
+static const int NUM_SETTINGS  = 6;
+static const int S_PAGE0_COUNT = 3;   // items on page 0 (items 0,1,2: prefs)
+// items 3,4,5 live on page 1 (info screens)
 
 // Row geometry: 3 rows of 58px + 5px gaps fit in the ~190px content area.
 static const int S_ROW_H   = 58;
@@ -535,19 +599,24 @@ static void drawSettingsRow(int slot, int idx, int sel)
     // Title (size 2)
     tft.setTextSize(2);
     tft.setTextColor(lblCol, bgCol);
-    if      (idx == 0) tft.drawString("BACKLIGHT", bx + 16, by + 8);
-    else if (idx == 1) tft.drawString("VOLUME",    bx + 16, by + 8);
-    else if (idx == 2) tft.drawString("BATTERY",   bx + 16, by + 8);
-    else if (idx == 3) tft.drawString("SENSORS",   bx + 16, by + 8);
-    else               tft.drawString("DEVICE",    bx + 16, by + 8);
+    if      (idx == 0) tft.drawString("BACKLIGHT",  bx + 16, by + 8);
+    else if (idx == 1) tft.drawString("VOLUME",     bx + 16, by + 8);
+    else if (idx == 2) tft.drawString("TEMP UNIT",  bx + 16, by + 8);
+    else if (idx == 3) tft.drawString("SENSORS",    bx + 16, by + 8);
+    else if (idx == 4) tft.drawString("BATTERY",    bx + 16, by + 8);
+    else               tft.drawString("DEVICE",     bx + 16, by + 8);
 
-    // Value badge right-aligned (BACKLIGHT and VOLUME only)
-    if (idx == 0 || idx == 1)
+    // Value badge right-aligned (BACKLIGHT, VOLUME, TEMP UNIT)
+    if (idx == 0 || idx == 1 || idx == 2)
     {
         char valBuf[8];
         if (idx == 0)
         {
             sprintf(valBuf, "%d%%", brightness);
+        }
+        else if (idx == 2)
+        {
+            strncpy(valBuf, g_tempUnit == 0 ? "C" : "F", sizeof(valBuf));
         }
         else
         {
@@ -558,12 +627,6 @@ static void drawSettingsRow(int slot, int idx, int sel)
             } else {
                 sprintf(valBuf, "%d", g_volume);
             }
-            if (g_volume == 0 && selected)
-                tft.setTextColor(tft.color565(220, 80, 30), bgCol);
-            else if (g_volume == 0)
-                tft.setTextColor(tft.color565(100, 30, 10), bgCol);
-            else
-                tft.setTextColor(valCol, bgCol);
         }
         tft.setTextSize(2);
         tft.setTextColor((idx == 1 && g_volume == 0 && selected)  ? tft.color565(220, 80, 30)
@@ -579,8 +642,9 @@ static void drawSettingsRow(int slot, int idx, int sel)
     tft.setTextColor(subCol, bgCol);
     if      (idx == 0) tft.drawString("Adjust display brightness",     bx + 16, by + 34);
     else if (idx == 1) tft.drawString("Alert & timer sounds",           bx + 16, by + 34);
-    else if (idx == 2) tft.drawString("SoC, voltage, current & health", bx + 16, by + 34);
+    else if (idx == 2) tft.drawString("Temperature scale (C / F)",      bx + 16, by + 34);
     else if (idx == 3) tft.drawString("Accel, light & mic dashboard",   bx + 16, by + 34);
+    else if (idx == 4) tft.drawString("SoC, voltage, current & health", bx + 16, by + 34);
     else               tft.drawString("MCU, memory & firmware info",    bx + 16, by + 34);
 }
 
@@ -670,8 +734,9 @@ void settingsScreen()
             delay(50);
             if      (sel == 0) brightnessSubScreen();
             else if (sel == 1) volumeSubScreen();
-            else if (sel == 2) batteryInfoScreen();
+            else if (sel == 2) tempUnitSubScreen();
             else if (sel == 3) sensorsScreen();
+            else if (sel == 4) batteryInfoScreen();
             else               deviceInfoScreen();
             redrawSettingsScreen(sel);
         }

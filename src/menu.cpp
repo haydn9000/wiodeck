@@ -129,12 +129,13 @@ void navigation()
       case 4:  processWatchScreen();      break;
       case 5:  claudeUsageScreen();       break;
       case 6:  ultrasonicScreen();        break;
-      case 7:  wifiAnalyserScreen();      break;
-      case 8:  bleScannerScreen();        break;
-      case 9:  matrixRainScreen();        break;
-      case 10: sdCardViewerScreen();      break;
-      case 11: settingsScreen();          break;
-      case 12: robotEyesScreen();         break;
+      case 7:  tempHumidityScreen();      break;
+      case 8:  wifiAnalyserScreen();      break;
+      case 9:  bleScannerScreen();        break;
+      case 10: matrixRainScreen();        break;
+      case 11: robotEyesScreen();         break;
+      case 12: sdCardViewerScreen();      break;
+      case 13: settingsScreen();          break;
     }
     delay(200);
     menuNeedsRedraw = true;
