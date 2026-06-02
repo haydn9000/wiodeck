@@ -21,7 +21,7 @@ A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio
 | **Matrix Rain** | `matrixRain.cpp` | Animated Matrix-style digital rain | <img src="img/matrix-screen.BMP" width="240"> |
 | **Robot Eyes** | `robotEyes.cpp` | Sound-reactive animated robot face — 4 states (IDLE/CURIOUS/ALERT/SHOCK) driven by mic amplitude. | |
 | **Temp + Humidity** | `tempHumidity.cpp` | [Grove DHT11](https://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/) temperature & humidity sensor — colour-coded readings, 2 s refresh. Displays °C or °F based on the Temp Unit setting. **Right Grove port** (data→A0). | |
-| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images on the microSD card. Folder picker (KEY_A) lets you switch between directories. Supports 16, 24, and 32-bit BMP. | |
+| **SD Card Viewer** | `sdCardViewer.cpp` | Browse and display BMP images on the microSD card. Three-level navigation: **folder picker → file list → image viewer**. KEY_A steps back one level; KEY_C returns to menu. Supports 16, 24, and 32-bit BMP. | |
 | **Settings** | `settings.cpp` | Settings menu with six sub-screens across two pages — **Page 0:** Backlight (brightness), Volume (buzzer level), Temp Unit (°C/°F); **Page 1:** Sensors (live accelerometer/light/mic dashboard), Battery (SoC, voltage, current, health), Device Info (MCU specs, memory, serial number, firmware build). All settings persist to flash. | <img src="img/settings-screen.BMP" width="240"> |
 
 ## Hardware

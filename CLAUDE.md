@@ -202,7 +202,12 @@ The semicircular arc gauge fills clockwise as proximity increases (far = empty, 
 The sensor source tag (`DHT11 / A0`) is placed in the header at x=155 to stay clear of the battery indicator (which occupies x≥244). The error state uses a three-tier layout — size-3 `READ ERROR` heading, size-2 pin hint, size-1 port detail — so a missing sensor is immediately visible.
 
 ### SD card viewer
-`sdCardViewer.cpp` reads BMP files from any folder on the microSD card. On entry a **folder picker** lists all non-system directories (plus `/ (root)`) — navigate with joystick UP/DOWN, confirm with PRESS or RIGHT; KEY_A returns to the picker from the image viewer.
+`sdCardViewer.cpp` reads BMP files from any folder on the microSD card. Navigation is three levels deep:
+1. **Folder picker** — lists all non-system directories plus `/ (root)`; UP/DOWN to navigate, PRESS/RIGHT to open.
+2. **File picker** — lists all `.BMP` files in the selected folder; UP/DOWN to navigate, PRESS/RIGHT to view, KEY_A to go back to folder picker.
+3. **Image viewer** — shows the selected BMP full-screen; LEFT/RIGHT to move between images, KEY_A to go back to the file picker, KEY_C to return to the menu.
+
+`bmpIndex` is preserved when returning from the image viewer to the file picker, so the list re-opens on the last-viewed file.
 
 Supported formats: 16-bit BI_RGB (RGB555) and BI_BITFIELDS (RGB565, detected via colour masks), 24-bit BI_RGB, 32-bit BI_RGB/BI_BITFIELDS (Windows default export). Pixel conversion: `color565()` returns little-endian values; SAMD51 DMA (`pushImage()`) sends memory byte-order to the ILI9341 which expects big-endian — rows are byte-swapped with `(c >> 8) | (c << 8)` before the `pushImage()` call. File entries from `entry.name()` return the full FatFS path (`0:/SCRN0001.BMP`); the viewer strips to the bare filename via `strrchr(full, '/')` before building the open path (which must not include a leading `/`).
 

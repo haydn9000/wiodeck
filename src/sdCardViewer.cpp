@@ -2,13 +2,19 @@
 //
 // Controls (folder picker):
 //   [UP/DOWN] Navigate folders
-//   [PRESS]   Select folder
+//   [PRESS]   Open folder (shows file list)
+//   [C]       Back to menu
+//
+// Controls (file picker):
+//   [UP/DOWN] Navigate files
+//   [PRESS]   View selected image
+//   [A]       Back to folder picker
 //   [C]       Back to menu
 //
 // Controls (image viewer):
 //   [LEFT]    Previous image
 //   [RIGHT]   Next image
-//   [A]       Folder picker
+//   [A]       Back to file picker
 //   [B]       Screenshot
 //   [C]       Back to menu
 
@@ -228,6 +234,62 @@ static void drawFolderPicker()
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 80, 95), TFT_BLACK);
     tft.drawString("[^/v] NAV  [PRESS] SELECT  [C] BACK", 8, 227);
+    drawBatteryStatus(TFT_BLACK);
+}
+
+// -------------------------------------------------------------------------
+// File picker: scrollable list of BMPs in the current folder.
+static void drawFilePicker()
+{
+    tft.fillScreen(TFT_BLACK);
+    tft.fillRect(0, 0, 320, 30, tft.color565(0, 8, 20));
+    tft.fillRect(0, 0, 3,   30, tft.color565(0, 220, 245));
+    tft.setTextSize(2);
+    tft.setTextColor(tft.color565(0, 220, 245), tft.color565(0, 8, 20));
+    tft.drawString("// SD VIEWER", 10, 7);
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 148, 170), tft.color565(0, 8, 20));
+    tft.drawString("FILES", 160, 11);
+    tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 100));
+
+    // Folder subtitle
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 110, 130), TFT_BLACK);
+    const char* folderLabel = (currentFolder[0] == '\0') ? "/ (root)" : currentFolder;
+    tft.drawString(folderLabel, 8, 33);
+
+    const int ROW_H   = 22;
+    const int START_Y = 46;
+    const int VISIBLE = 7;
+
+    int scrollTop = bmpIndex - VISIBLE / 2;
+    if (scrollTop < 0) scrollTop = 0;
+    if (scrollTop > bmpCount - VISIBLE) scrollTop = bmpCount - VISIBLE;
+    if (scrollTop < 0) scrollTop = 0;
+
+    for (int i = 0; i < VISIBLE && (scrollTop + i) < bmpCount; i++)
+    {
+        int fi   = scrollTop + i;
+        int y    = START_Y + i * ROW_H;
+        bool sel = (fi == bmpIndex);
+
+        uint16_t bg  = sel ? tft.color565(0, 50, 70)   : TFT_BLACK;
+        uint16_t fg  = sel ? tft.color565(0, 220, 245) : tft.color565(120, 180, 200);
+        uint16_t acc = sel ? tft.color565(0, 220, 245) : tft.color565(0, 50, 70);
+
+        tft.fillRect(4, y, 312, ROW_H - 2, bg);
+        tft.fillRect(4, y, 3,   ROW_H - 2, acc);
+
+        tft.setTextSize(1);
+        tft.setTextColor(fg, bg);
+        tft.drawString(bmpFiles[fi], 12, y + 7);
+    }
+
+    tft.fillRect(0, 220, 320, 20, TFT_BLACK);
+    tft.fillRect(0, 220, 3,   20, tft.color565(0, 210, 235));
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 80, 95), TFT_BLACK);
+    tft.drawString("[^/v] NAV  [PRESS] VIEW  [A] FOLDER  [C] BACK", 8, 227);
     drawBatteryStatus(TFT_BLACK);
 }
 
@@ -488,38 +550,81 @@ void sdCardViewerScreen()
         }
 
         bmpIndex = 0;
-        showCurrentBmp();
 
-        // ---- inner loop: image viewer ---------------------------------------
+        // ---- file picker loop ----------------------------------------------
         while (true)
         {
-            if (digitalRead(WIO_5S_LEFT) == LOW)
+            drawFilePicker();
+
+            bool fileChosen = false;
+            while (true)
             {
-                while (digitalRead(WIO_5S_LEFT) == LOW) delay(10);
-                if (bmpIndex > 0) { bmpIndex--; showCurrentBmp(); }
+                if (digitalRead(WIO_5S_UP) == LOW)
+                {
+                    while (digitalRead(WIO_5S_UP) == LOW) delay(10);
+                    if (bmpIndex > 0) { bmpIndex--; drawFilePicker(); }
+                }
+                if (digitalRead(WIO_5S_DOWN) == LOW)
+                {
+                    while (digitalRead(WIO_5S_DOWN) == LOW) delay(10);
+                    if (bmpIndex < bmpCount - 1) { bmpIndex++; drawFilePicker(); }
+                }
+                if (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_5S_RIGHT) == LOW)
+                {
+                    while (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_5S_RIGHT) == LOW) delay(10);
+                    fileChosen = true;
+                    break;
+                }
+                if (digitalRead(WIO_KEY_A) == LOW)
+                {
+                    while (digitalRead(WIO_KEY_A) == LOW) delay(10);
+                    break;  // back to folder picker
+                }
+                if (digitalRead(WIO_KEY_C) == LOW)
+                {
+                    while (digitalRead(WIO_KEY_C) == LOW) delay(10);
+                    delay(50);
+                    return;
+                }
+                delay(20);
             }
-            if (digitalRead(WIO_5S_RIGHT) == LOW)
+
+            if (!fileChosen) break;  // KEY_A → exit file picker → back to folder picker
+
+            showCurrentBmp();
+
+            // ---- image viewer loop -----------------------------------------
+            while (true)
             {
-                while (digitalRead(WIO_5S_RIGHT) == LOW) delay(10);
-                if (bmpIndex < bmpCount - 1) { bmpIndex++; showCurrentBmp(); }
+                if (digitalRead(WIO_5S_LEFT) == LOW)
+                {
+                    while (digitalRead(WIO_5S_LEFT) == LOW) delay(10);
+                    if (bmpIndex > 0) { bmpIndex--; showCurrentBmp(); }
+                }
+                if (digitalRead(WIO_5S_RIGHT) == LOW)
+                {
+                    while (digitalRead(WIO_5S_RIGHT) == LOW) delay(10);
+                    if (bmpIndex < bmpCount - 1) { bmpIndex++; showCurrentBmp(); }
+                }
+                if (digitalRead(WIO_KEY_A) == LOW)
+                {
+                    while (digitalRead(WIO_KEY_A) == LOW) delay(10);
+                    break;  // back to file picker
+                }
+                if (digitalRead(WIO_KEY_B) == LOW)
+                {
+                    while (digitalRead(WIO_KEY_B) == LOW) delay(10);
+                    takeScreenshot();
+                }
+                if (digitalRead(WIO_KEY_C) == LOW)
+                {
+                    while (digitalRead(WIO_KEY_C) == LOW) delay(10);
+                    delay(50);
+                    return;
+                }
+                delay(20);
             }
-            if (digitalRead(WIO_KEY_A) == LOW)
-            {
-                while (digitalRead(WIO_KEY_A) == LOW) delay(10);
-                break;  // back to folder picker
-            }
-            if (digitalRead(WIO_KEY_B) == LOW)
-            {
-                while (digitalRead(WIO_KEY_B) == LOW) delay(10);
-                takeScreenshot();
-            }
-            if (digitalRead(WIO_KEY_C) == LOW)
-            {
-                while (digitalRead(WIO_KEY_C) == LOW) delay(10);
-                delay(50);
-                return;
-            }
-            delay(20);
+            // back to file picker top (bmpIndex stays on the last-viewed file)
         }
         // fall through to outer loop → redraw folder picker
     }
