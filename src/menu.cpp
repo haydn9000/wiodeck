@@ -134,6 +134,7 @@ void navigation()
       case 9:  matrixRainScreen();        break;
       case 10: sdCardViewerScreen();      break;
       case 11: settingsScreen();          break;
+      case 12: robotEyesScreen();         break;
     }
     delay(200);
     menuNeedsRedraw = true;

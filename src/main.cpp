@@ -11,7 +11,7 @@ int maxBrightness;
 char optionTest = 'C';
 
 int menuIndex = 0;
-const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS", "CLAUDE", "SONAR", "AP SCAN", "BLE SCAN", "MATRIX", "SD VIEW", "SETTINGS" };
+const char* menuItems[] = { "POMODORO", "STOPWATCH", "COUNTDOWN", "SYS STATS", "PROCS", "CLAUDE", "SONAR", "AP SCAN", "BLE SCAN", "MATRIX", "SD VIEW", "SETTINGS", "ROBO EYE" };
 bool menuNeedsRedraw = true;
 bool bleInitDone = false;
 

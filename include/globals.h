@@ -12,7 +12,7 @@ extern bool bleInitDone;
 
 // ---- Menu state (defined in main.cpp) ----
 extern int menuIndex;
-constexpr int MENU_COUNT = 12;
+constexpr int MENU_COUNT = 13;
 extern const char* menuItems[];
 extern bool menuNeedsRedraw;
 
@@ -80,6 +80,9 @@ void sdCardViewerScreen();
 
 // ---- wifiAnalyser.cpp ----
 void wifiAnalyserScreen();
+
+// ---- robotEyes.cpp ----
+void robotEyesScreen();
 
 // ---- ultrasonicSensor.cpp ----
 void ultrasonicScreen();
