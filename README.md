@@ -1,7 +1,9 @@
 # Wio Terminal Workbench
 
-![Wio Terminal](img/Wio-Terminal-Front.jpg)
-
+<p align="center">
+  <img src="img/wio terminal device.jpg" width="480"><br>
+  <img src="img/wio terminal screens.png" width="720">
+</p>
 
 A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio-Terminal-Getting-Started/). Screens plug into a joystick-navigated menu — each one is a self-contained `.cpp` file. Add a screen, register it in the menu, done. Companion host-side tools live in `tools/`.
 
@@ -55,6 +57,8 @@ Every screen has access to:
 | Backlight control | `backLight.setBrightness()` via `globals.h` |
 
 ## Navigation (hardware)
+
+<img src="img/menu-screen.BMP" width="320">
 
 | Input | Action |
 |---|---|

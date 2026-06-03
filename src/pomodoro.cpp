@@ -244,7 +244,6 @@ static void drawPomFrame()
     // --- Footer ---
     tft.fillRect(0, 219, 320, 21, TFT_BLACK);
     tft.fillRect(0, 219, 3, 21, ac);
-    tft.drawFastHLine(0, 219, 320, acd);
     tft.setTextSize(1);
     tft.setTextColor(pomFooterColor(), TFT_BLACK);
     tft.drawString("[PRESS] RUN/STOP  [L] SKIP  [R] RESET  [C] BACK", 8, 227);

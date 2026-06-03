@@ -64,26 +64,39 @@ static void drawCdTime(bool force = false)
     if (!force && strcmp(buf, cdPrevBuf) == 0) return;
     strcpy(cdPrevBuf, buf);
 
-    uint16_t col = (cdState == CD_DONE)   ? cdWarn() :
-                   (cdState == CD_RUNNING) ? cdAcc()  :
-                                             tft.color565(170, 120, 0);
+    uint16_t col = (cdState == CD_DONE)    ? cdWarn() :
+                   (cdState == CD_RUNNING)  ? cdAcc()  :
+                                              tft.color565(170, 120, 0);
 
-    tft.setTextSize(4);
+    tft.setTextSize(5);
     tft.setTextColor(col, TFT_BLACK);
-    // "HH:MM:SS" at size 4: 8 chars × 24px = 192px → centred at x=64
-    tft.drawString(buf, 64, 56);
+    // "HH:MM:SS" at size 5: 8 chars × 30px = 240px → centred: x=40
+    tft.drawString(buf, 40, 50);
 
-    // Field underlines (2px) — visible only in SETUP mode
-    // HH=x64 MM=x136 SS=x208, each 48px wide (2 chars × 24px)
+    // Field underlines (3px) — SETUP mode only.
+    // Size 5: HH at x=40 (60px), MM at x=130 (60px), SS at x=220 (60px)
     if (cdState == CD_SETUP)
     {
-        const int fx[3] = { 64, 136, 208 };
+        const int fx[3] = { 40, 130, 220 };
         for (int i = 0; i < 3; i++)
-            tft.fillRect(fx[i], 90, 48, 2, (i == cdField) ? cdAcc() : TFT_BLACK);
+            tft.fillRect(fx[i], 93, 60, 3, (i == cdField) ? cdAcc() : TFT_BLACK);
+
+        // Field labels centred under each segment (centres: HH=70, MM=160, SS=250)
+        static const char* const fLabels[3] = { "HOURS", "MINUTES", "SECONDS" };
+        const int cx[3] = { 70, 160, 250 };
+        tft.setTextSize(1);
+        for (int i = 0; i < 3; i++)
+        {
+            uint16_t lc = (i == cdField) ? cdAcc() : tft.color565(140, 105, 0);
+            tft.setTextColor(lc, TFT_BLACK);
+            int lw = (int)strlen(fLabels[i]) * 6;
+            tft.fillRect(cx[i] - 42, 100, 84, 10, TFT_BLACK);
+            tft.drawString(fLabels[i], cx[i] - lw / 2, 101);
+        }
     }
     else
     {
-        tft.fillRect(64, 90, 192, 2, TFT_BLACK);
+        tft.fillRect(40, 93, 240, 3, TFT_BLACK);
     }
 }
 
@@ -99,9 +112,9 @@ static void drawCdProgress()
     if (fill > bw) fill = bw;
 
     uint16_t bc = (cdTotalSec > 0 && rem <= cdTotalSec / 4) ? cdWarn() : cdAcc();
-    tft.fillRect(20,        103, fill,      5, bc);
-    tft.fillRect(20 + fill, 103, bw - fill, 5, TFT_BLACK);
-    tft.drawRect(19, 102, bw + 2, 7, tft.color565(50, 38, 0));
+    tft.fillRect(20,        115, fill,      8, bc);
+    tft.fillRect(20 + fill, 115, bw - fill, 8, tft.color565(20, 15, 0));
+    tft.drawRect(19, 114, bw + 2, 10, tft.color565(50, 38, 0));
 }
 
 // -------------------------------------------------------------------------
@@ -156,18 +169,33 @@ static void drawCdFrame()
     // Content below time display
     if (cdState == CD_SETUP)
     {
+        // Field labels are drawn by drawCdTime(); just the hint line here.
         tft.setTextSize(1);
-        tft.setTextColor(cdDim(), TFT_BLACK);
-        tft.drawString("[U/D] ADJUST   [L/R] FIELD", 12, 118);
+        tft.setTextColor(tft.color565(150, 110, 0), TFT_BLACK);
+        tft.drawString("[U/D] ADJUST   [L/R] FIELD   [PRESS] START", 8, 125);
     }
     else if (cdState == CD_DONE)
     {
-        tft.setTextSize(2);
+        tft.setTextSize(3);
         tft.setTextColor(cdWarn(), TFT_BLACK);
-        tft.drawString("TIME'S UP!", 85, 118);
+        // "TIME'S UP!" = 10 chars × 18px = 180px; centre: x=(320-180)/2=70
+        tft.drawString("TIME'S UP!", 70, 140);
         tft.setTextSize(1);
-        tft.setTextColor(tft.color565(130, 40, 15), TFT_BLACK);
-        tft.drawString("[PRESS] to reset", 108, 146);
+        tft.setTextColor(tft.color565(180, 70, 30), TFT_BLACK);
+        tft.drawString("[PRESS] to reset   [L] to re-edit", 42, 178);
+    }
+    else
+    {
+        // RUNNING / PAUSED — show the original target time.
+        tft.setTextSize(1);
+        tft.setTextColor(tft.color565(150, 110, 0), TFT_BLACK);
+        tft.drawString("TARGET", 12, 135);
+        char setbuf[10];
+        sprintf(setbuf, "%02d:%02d:%02d", cdSetH, cdSetM, cdSetS);
+        tft.setTextSize(3);
+        tft.setTextColor(cdDim(), TFT_BLACK);
+        // HH:MM:SS at size 3: 8 chars × 18px = 144px; centre: x=(320-144)/2=88
+        tft.drawString(setbuf, 88, 148);
     }
 
     drawCdProgress();
