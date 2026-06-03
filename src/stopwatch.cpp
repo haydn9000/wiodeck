@@ -122,6 +122,82 @@ static void drawStopwatchFrame()
 }
 
 // -------------------------------------------------------------------------
+// Redraw only the lap counter badge (top-right corner).
+static void drawSwLapCounter()
+{
+    tft.fillRect(240, 32, 80, 14, TFT_BLACK);
+    if (swLapCount > 0)
+    {
+        char lcBuf[12]; sprintf(lcBuf, "LAP %d", swLapCount + 1);
+        tft.setTextSize(1);
+        tft.setTextColor(tft.color565(0, 160, 190), TFT_BLACK);
+        tft.drawString(lcBuf, 262, 35);
+    }
+}
+
+// -------------------------------------------------------------------------
+// Redraw a single lap row at screen slot slotIdx (0–3) for lap lapIdx.
+static void drawSwLapRow(int slotIdx, int lapIdx, bool isLast)
+{
+    int rowY = 118 + slotIdx * 22;
+    tft.fillRect(0, rowY, 320, 16, TFT_BLACK);
+    tft.setTextSize(1);
+    uint16_t rc = isLast ? tft.color565(0, 210, 230) : tft.color565(100, 140, 150);
+    char numBuf[4]; sprintf(numBuf, "%d", lapIdx + 1);
+    tft.setTextColor(rc, TFT_BLACK);
+    tft.drawString(numBuf, 12, rowY);
+    uint32_t split = swLaps[lapIdx] - (lapIdx > 0 ? swLaps[lapIdx - 1] : 0);
+    char splitBuf[12]; swFormatTime(splitBuf, split);
+    tft.drawString(splitBuf, 52, rowY);
+    char totalBuf[12]; swFormatTime(totalBuf, swLaps[lapIdx]);
+    tft.setTextColor(tft.color565(100, 148, 162), TFT_BLACK);
+    tft.drawString(totalBuf, 210, rowY);
+}
+
+// -------------------------------------------------------------------------
+// Redraw only the lap list area (divider + column headers + rows).
+// Clears the region and repaints — no fillScreen involved.
+static void drawSwLapArea()
+{
+    tft.fillRect(0, 102, 320, 117, TFT_BLACK);
+
+    tft.drawFastHLine(0, 102, 320, tft.color565(0, 50, 65));
+    tft.drawFastVLine(0,   102, 1, tft.color565(0, 150, 190));
+    tft.drawFastVLine(319, 102, 1, tft.color565(0, 150, 190));
+
+    if (swLapCount == 0) return;
+
+    tft.setTextSize(1);
+    tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
+    tft.drawString("LAP",   12,  107);
+    tft.drawString("SPLIT", 52,  107);
+    tft.drawString("TOTAL", 210, 107);
+
+    int show     = swLapCount > 4 ? 4 : swLapCount;
+    int startIdx = swLapCount - show;
+
+    for (int i = 0; i < show; i++)
+    {
+        int      idx   = startIdx + i;
+        int      rowY  = 118 + i * 22;
+        bool     isLst = (idx == swLapCount - 1);
+        uint16_t rc    = isLst ? tft.color565(0, 210, 230) : tft.color565(100, 140, 150);
+
+        char numBuf[4]; sprintf(numBuf, "%d", idx + 1);
+        tft.setTextColor(rc, TFT_BLACK);
+        tft.drawString(numBuf, 12, rowY);
+
+        uint32_t split = swLaps[idx] - (idx > 0 ? swLaps[idx - 1] : 0);
+        char splitBuf[12]; swFormatTime(splitBuf, split);
+        tft.drawString(splitBuf, 52, rowY);
+
+        char totalBuf[12]; swFormatTime(totalBuf, swLaps[idx]);
+        tft.setTextColor(tft.color565(100, 148, 162), TFT_BLACK);
+        tft.drawString(totalBuf, 210, rowY);
+    }
+}
+
+// -------------------------------------------------------------------------
 // Redraw only the time field — called every ~20 ms when running.
 // Uses text with black bg so it self-clears without a fillScreen.
 static char swPrevBuf[12] = "";
@@ -198,7 +274,31 @@ void stopwatchScreen()
         {
             swLaps[swLapCount++] = swCurrentMs();
             while (digitalRead(WIO_5S_RIGHT) == LOW) delay(10);
-            frameNeeded = true;
+            drawSwLapCounter();
+            int n = swLapCount;
+            if (n == 1)
+            {
+                // First lap: draw column headers then the single row.
+                tft.setTextSize(1);
+                tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
+                tft.drawString("LAP",   12,  107);
+                tft.drawString("SPLIT", 52,  107);
+                tft.drawString("TOTAL", 210, 107);
+                drawSwLapRow(0, 0, true);
+            }
+            else if (n <= 4)
+            {
+                // No scroll: recolour the old last row, draw the new one.
+                drawSwLapRow(n - 2, n - 2, false);
+                drawSwLapRow(n - 1, n - 1, true);
+            }
+            else
+            {
+                // Window scrolled — all 4 visible rows changed, redraw each.
+                int startIdx = n - 4;
+                for (int i = 0; i < 4; i++)
+                    drawSwLapRow(i, startIdx + i, i == 3);
+            }
         }
         // [LEFT] reset — only while paused
         else if (digitalRead(WIO_5S_LEFT) == LOW && !swRunning)
