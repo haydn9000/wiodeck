@@ -1,4 +1,4 @@
-# Wio Terminal Workbench
+# WioDeck — Cyberpunk Toolkit for Wio Terminal
 
 <p align="center">
   <img src="img/wio terminal device.jpg" width="480"><br>
