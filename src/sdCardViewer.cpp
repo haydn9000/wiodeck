@@ -187,10 +187,47 @@ static void drawNoBmps()
 }
 
 // -------------------------------------------------------------------------
-// Folder picker: scrollable list of directories, highlights folderPickerIdx.
+static int pickerScrollTop(int idx, int count, int visible)
+{
+    int s = idx - visible / 2;
+    if (s < 0) s = 0;
+    if (s > count - visible) s = count - visible;
+    if (s < 0) s = 0;
+    return s;
+}
+
+// Shared highlight palette — neon amber complements the teal/cyan chrome.
+static const uint16_t SEL_BG  = 0;  // filled per-call with color565
+static inline uint16_t selBg()  { return tft.color565( 52,  28,  0); }
+static inline uint16_t selFg()  { return tft.color565(255, 195,  0); }
+static inline uint16_t selAcc() { return tft.color565(255, 130,  0); }
+static inline uint16_t dimFg()  { return tft.color565( 90, 140, 158); }
+static inline uint16_t dimAcc() { return tft.color565(  0,  32,  46); }
+
+// -------------------------------------------------------------------------
+// Folder picker — single-row draw and full-screen draw
+static void drawFolderRow(int fi, int scrollTop, bool selected)
+{
+    const int ROW_H   = 22;
+    const int START_Y = 36;
+    int slot = fi - scrollTop;
+    if (slot < 0 || slot >= 8) return;
+    int y = START_Y + slot * ROW_H;
+
+    uint16_t bg  = selected ? selBg()  : TFT_BLACK;
+    uint16_t fg  = selected ? selFg()  : dimFg();
+    uint16_t acc = selected ? selAcc() : dimAcc();
+
+    tft.fillRect(4, y, 312, ROW_H - 2, bg);
+    tft.fillRect(4, y, 3,   ROW_H - 2, acc);
+    tft.setTextSize(1);
+    tft.setTextColor(fg, bg);
+    const char* label = (folderList[fi][0] == '\0') ? "/ (root)" : folderList[fi];
+    tft.drawString(label, 12, y + 7);
+}
+
 static void drawFolderPicker()
 {
-    tft.fillScreen(TFT_BLACK);
     tft.fillRect(0, 0, 320, 30, tft.color565(0, 8, 20));
     tft.fillRect(0, 0, 3,   30, tft.color565(0, 220, 245));
     tft.setTextSize(2);
@@ -201,33 +238,10 @@ static void drawFolderPicker()
     tft.drawString("FOLDER", 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 100));
 
-    const int ROW_H   = 22;
-    const int START_Y = 36;
-    const int VISIBLE = 8;
-
-    int scrollTop = folderPickerIdx - VISIBLE / 2;
-    if (scrollTop < 0) scrollTop = 0;
-    if (scrollTop > folderCount - VISIBLE) scrollTop = folderCount - VISIBLE;
-    if (scrollTop < 0) scrollTop = 0;
-
-    for (int i = 0; i < VISIBLE && (scrollTop + i) < folderCount; i++)
-    {
-        int fi   = scrollTop + i;
-        int y    = START_Y + i * ROW_H;
-        bool sel = (fi == folderPickerIdx);
-
-        uint16_t bg  = sel ? tft.color565(0, 50, 70)    : TFT_BLACK;
-        uint16_t fg  = sel ? tft.color565(0, 220, 245)  : tft.color565(120, 180, 200);
-        uint16_t acc = sel ? tft.color565(0, 220, 245)  : tft.color565(0, 50, 70);
-
-        tft.fillRect(4, y, 312, ROW_H - 2, bg);
-        tft.fillRect(4, y, 3,   ROW_H - 2, acc);
-
-        tft.setTextSize(1);
-        tft.setTextColor(fg, bg);
-        const char* label = (folderList[fi][0] == '\0') ? "/ (root)" : folderList[fi];
-        tft.drawString(label, 12, y + 7);
-    }
+    tft.fillRect(0, 30, 320, 190, TFT_BLACK);
+    int scrollTop = pickerScrollTop(folderPickerIdx, folderCount, 8);
+    for (int i = 0; i < 8 && (scrollTop + i) < folderCount; i++)
+        drawFolderRow(scrollTop + i, scrollTop, (scrollTop + i) == folderPickerIdx);
 
     tft.fillRect(0, 220, 320, 20, TFT_BLACK);
     tft.fillRect(0, 220, 3,   20, tft.color565(0, 210, 235));
@@ -237,11 +251,49 @@ static void drawFolderPicker()
     drawBatteryStatus(TFT_BLACK);
 }
 
+// Update only the affected rows — no full-region clear, so no flash.
+static void updateFolderPicker(int oldIdx)
+{
+    int oldScroll = pickerScrollTop(oldIdx,          folderCount, 8);
+    int newScroll = pickerScrollTop(folderPickerIdx, folderCount, 8);
+    if (oldScroll != newScroll) {
+        // Scroll window shifted — redraw all rows (each fills its own bg, no pre-clear needed).
+        for (int i = 0; i < 8; i++) {
+            int fi = newScroll + i;
+            if (fi < folderCount)
+                drawFolderRow(fi, newScroll, fi == folderPickerIdx);
+            else
+                tft.fillRect(4, 36 + i * 22, 312, 20, TFT_BLACK);  // clear unused slot
+        }
+    } else {
+        drawFolderRow(oldIdx,          oldScroll, false);
+        drawFolderRow(folderPickerIdx, newScroll, true);
+    }
+}
+
 // -------------------------------------------------------------------------
-// File picker: scrollable list of BMPs in the current folder.
+// File picker — single-row draw and full-screen draw
+static void drawFileRow(int fi, int scrollTop, bool selected)
+{
+    const int ROW_H   = 22;
+    const int START_Y = 46;
+    int slot = fi - scrollTop;
+    if (slot < 0 || slot >= 7) return;
+    int y = START_Y + slot * ROW_H;
+
+    uint16_t bg  = selected ? selBg()  : TFT_BLACK;
+    uint16_t fg  = selected ? selFg()  : dimFg();
+    uint16_t acc = selected ? selAcc() : dimAcc();
+
+    tft.fillRect(4, y, 312, ROW_H - 2, bg);
+    tft.fillRect(4, y, 3,   ROW_H - 2, acc);
+    tft.setTextSize(1);
+    tft.setTextColor(fg, bg);
+    tft.drawString(bmpFiles[fi], 12, y + 7);
+}
+
 static void drawFilePicker()
 {
-    tft.fillScreen(TFT_BLACK);
     tft.fillRect(0, 0, 320, 30, tft.color565(0, 8, 20));
     tft.fillRect(0, 0, 3,   30, tft.color565(0, 220, 245));
     tft.setTextSize(2);
@@ -252,38 +304,15 @@ static void drawFilePicker()
     tft.drawString("FILES", 160, 11);
     tft.drawFastHLine(0, 29, 320, tft.color565(0, 80, 100));
 
-    // Folder subtitle
+    tft.fillRect(0, 30, 320, 190, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(0, 110, 130), TFT_BLACK);
     const char* folderLabel = (currentFolder[0] == '\0') ? "/ (root)" : currentFolder;
     tft.drawString(folderLabel, 8, 33);
 
-    const int ROW_H   = 22;
-    const int START_Y = 46;
-    const int VISIBLE = 7;
-
-    int scrollTop = bmpIndex - VISIBLE / 2;
-    if (scrollTop < 0) scrollTop = 0;
-    if (scrollTop > bmpCount - VISIBLE) scrollTop = bmpCount - VISIBLE;
-    if (scrollTop < 0) scrollTop = 0;
-
-    for (int i = 0; i < VISIBLE && (scrollTop + i) < bmpCount; i++)
-    {
-        int fi   = scrollTop + i;
-        int y    = START_Y + i * ROW_H;
-        bool sel = (fi == bmpIndex);
-
-        uint16_t bg  = sel ? tft.color565(0, 50, 70)   : TFT_BLACK;
-        uint16_t fg  = sel ? tft.color565(0, 220, 245) : tft.color565(120, 180, 200);
-        uint16_t acc = sel ? tft.color565(0, 220, 245) : tft.color565(0, 50, 70);
-
-        tft.fillRect(4, y, 312, ROW_H - 2, bg);
-        tft.fillRect(4, y, 3,   ROW_H - 2, acc);
-
-        tft.setTextSize(1);
-        tft.setTextColor(fg, bg);
-        tft.drawString(bmpFiles[fi], 12, y + 7);
-    }
+    int scrollTop = pickerScrollTop(bmpIndex, bmpCount, 7);
+    for (int i = 0; i < 7 && (scrollTop + i) < bmpCount; i++)
+        drawFileRow(scrollTop + i, scrollTop, (scrollTop + i) == bmpIndex);
 
     tft.fillRect(0, 220, 320, 20, TFT_BLACK);
     tft.fillRect(0, 220, 3,   20, tft.color565(0, 210, 235));
@@ -291,6 +320,26 @@ static void drawFilePicker()
     tft.setTextColor(tft.color565(0, 80, 95), TFT_BLACK);
     tft.drawString("[^/v] NAV  [PRESS] VIEW  [A] FOLDER  [C] BACK", 8, 227);
     drawBatteryStatus(TFT_BLACK);
+}
+
+// Update only the affected rows — no full-region clear, so no flash.
+static void updateFilePicker(int oldIdx)
+{
+    int oldScroll = pickerScrollTop(oldIdx,   bmpCount, 7);
+    int newScroll = pickerScrollTop(bmpIndex, bmpCount, 7);
+    if (oldScroll != newScroll) {
+        // Scroll window shifted — redraw all rows (each fills its own bg, no pre-clear needed).
+        for (int i = 0; i < 7; i++) {
+            int fi = newScroll + i;
+            if (fi < bmpCount)
+                drawFileRow(fi, newScroll, fi == bmpIndex);
+            else
+                tft.fillRect(4, 46 + i * 22, 312, 20, TFT_BLACK);  // clear unused slot
+        }
+    } else {
+        drawFileRow(oldIdx,   oldScroll, false);
+        drawFileRow(bmpIndex, newScroll, true);
+    }
 }
 
 // Last-detected BMP geometry — shown in the error screen.
@@ -488,13 +537,31 @@ void sdCardViewerScreen()
         {
             if (digitalRead(WIO_5S_UP) == LOW)
             {
-                while (digitalRead(WIO_5S_UP) == LOW) delay(10);
-                if (folderPickerIdx > 0) { folderPickerIdx--; drawFolderPicker(); }
+                if (folderPickerIdx > 0) { int o = folderPickerIdx--; updateFolderPicker(o); }
+                uint32_t heldSince = millis(), lastStep = millis();
+                bool repeating = false;
+                while (digitalRead(WIO_5S_UP) == LOW) {
+                    uint32_t now = millis();
+                    if (!repeating && now - heldSince >= 400) { repeating = true; lastStep = now; }
+                    if (repeating && now - lastStep >= 120 && folderPickerIdx > 0)
+                        { int o = folderPickerIdx--; updateFolderPicker(o); lastStep = now; }
+                    delay(10);
+                }
+                delay(50);
             }
             if (digitalRead(WIO_5S_DOWN) == LOW)
             {
-                while (digitalRead(WIO_5S_DOWN) == LOW) delay(10);
-                if (folderPickerIdx < folderCount - 1) { folderPickerIdx++; drawFolderPicker(); }
+                if (folderPickerIdx < folderCount - 1) { int o = folderPickerIdx++; updateFolderPicker(o); }
+                uint32_t heldSince = millis(), lastStep = millis();
+                bool repeating = false;
+                while (digitalRead(WIO_5S_DOWN) == LOW) {
+                    uint32_t now = millis();
+                    if (!repeating && now - heldSince >= 400) { repeating = true; lastStep = now; }
+                    if (repeating && now - lastStep >= 120 && folderPickerIdx < folderCount - 1)
+                        { int o = folderPickerIdx++; updateFolderPicker(o); lastStep = now; }
+                    delay(10);
+                }
+                delay(50);
             }
             // PRESS or joystick RIGHT to confirm selection
             if (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_5S_RIGHT) == LOW)
@@ -561,13 +628,31 @@ void sdCardViewerScreen()
             {
                 if (digitalRead(WIO_5S_UP) == LOW)
                 {
-                    while (digitalRead(WIO_5S_UP) == LOW) delay(10);
-                    if (bmpIndex > 0) { bmpIndex--; drawFilePicker(); }
+                    if (bmpIndex > 0) { int o = bmpIndex--; updateFilePicker(o); }
+                    uint32_t heldSince = millis(), lastStep = millis();
+                    bool repeating = false;
+                    while (digitalRead(WIO_5S_UP) == LOW) {
+                        uint32_t now = millis();
+                        if (!repeating && now - heldSince >= 400) { repeating = true; lastStep = now; }
+                        if (repeating && now - lastStep >= 120 && bmpIndex > 0)
+                            { int o = bmpIndex--; updateFilePicker(o); lastStep = now; }
+                        delay(10);
+                    }
+                    delay(50);
                 }
                 if (digitalRead(WIO_5S_DOWN) == LOW)
                 {
-                    while (digitalRead(WIO_5S_DOWN) == LOW) delay(10);
-                    if (bmpIndex < bmpCount - 1) { bmpIndex++; drawFilePicker(); }
+                    if (bmpIndex < bmpCount - 1) { int o = bmpIndex++; updateFilePicker(o); }
+                    uint32_t heldSince = millis(), lastStep = millis();
+                    bool repeating = false;
+                    while (digitalRead(WIO_5S_DOWN) == LOW) {
+                        uint32_t now = millis();
+                        if (!repeating && now - heldSince >= 400) { repeating = true; lastStep = now; }
+                        if (repeating && now - lastStep >= 120 && bmpIndex < bmpCount - 1)
+                            { int o = bmpIndex++; updateFilePicker(o); lastStep = now; }
+                        delay(10);
+                    }
+                    delay(50);
                 }
                 if (digitalRead(WIO_5S_PRESS) == LOW || digitalRead(WIO_5S_RIGHT) == LOW)
                 {
