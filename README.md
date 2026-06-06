@@ -17,7 +17,7 @@ A personal toolkit for the [Seeed Wio Terminal](https://wiki.seeedstudio.com/Wio
 | **Sys Stats** | `sysStats.cpp` | Arc gauges for CPU, RAM, GPU, VRAM usage + temperatures and network bandwidth, fed over USB serial or BLE | <img src="img/sysstats-screen.BMP" width="240"> |
 | **Process Watch** | `processWatch.cpp` | Top-5 CPU processes by usage, fed over USB serial or BLE | <img src="img/processes-screen.BMP" width="240"> |
 | **Claude Usage** | `claudeUsage.cpp` | Displays session (5h) and weekly (7d) Claude API utilisation, fed over USB serial or BLE | <img src="img/claude-usage-screen.BMP" width="240"> |
-| **Sonar** | `ultrasonicSensor.cpp` | [Seeed Grove Ultrasonic Distance Sensor](https://wiki.seeedstudio.com/Grove-Ultrasonic_Ranger/) — semicircular arc gauge with proximity zones (cyan/amber/magenta), configurable alert threshold, parking-sensor beeps, MIN/MAX tracker. **Left Grove port** (TRIG→D1, ECHO→D0). | |
+| **Sonar** | `ultrasonicSensor.cpp` | [Seeed Grove Ultrasonic Distance Sensor](https://wiki.seeedstudio.com/Grove-Ultrasonic_Ranger/) (SKU 101020010) — semicircular arc gauge with proximity zones (cyan/amber/magenta). Uses the single-pin SIG protocol (not separate TRIG/ECHO). **Right Grove port** (SIG→A0). | |
 | **AP Scan** | `wifiAnalyser.cpp` | Wi-Fi analyser — list view (SSID, band, channel, dBm, signal bar) + 2.4 GHz and 5 GHz channel congestion maps. Yellow triangle marks the least-congested non-overlapping channel (1, 6, or 11). | |
 | **BLE Scanner** | `bleScanner.cpp` | Scans for nearby BLE devices and displays RSSI signal strength | |
 | **Matrix Rain** | `matrixRain.cpp` | Animated Matrix-style digital rain | <img src="img/matrix-screen.BMP" width="240"> |

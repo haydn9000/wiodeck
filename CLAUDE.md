@@ -12,7 +12,7 @@ A personal toolkit for the Seeed Wio Terminal. Each screen is a `.cpp` file with
 | 3 | SYS STATS | PC system stats (CPU/RAM/GPU/net) |
 | 4 | PROCS | Top-5 CPU processes |
 | 5 | CLAUDE | Claude API usage |
-| 6 | SONAR | HC-SR04 ultrasonic distance sensor |
+| 6 | SONAR | Grove Ultrasonic Distance Sensor (SKU 101020010, single-pin SIG → A0, right Grove port) |
 | 7 | TEMP HUM | Grove DHT11 temperature & humidity |
 | 8 | AP SCAN | Wi-Fi analyser |
 | 9 | BLE SCAN | BLE device scanner |
@@ -80,7 +80,7 @@ src/
   sdCardViewer.cpp     — SD card BMP viewer: folder picker, browse and display 16/24/32-bit BMP images
   screenshot.cpp       — KEY_B handler: saves 24-bit BGR BMP to microSD as SCREENSHOTS/SCRN####.BMP
   matrixRain.cpp       — Animated Matrix-style digital rain
-  ultrasonicSensor.cpp — Sonar screen: HC-SR04 distance sensor, cyberpunk semicircular arc gauge
+  ultrasonicSensor.cpp — Sonar screen: Grove Ultrasonic Distance Sensor (SKU 101020010, single-pin SIG → A0, right Grove port), cyberpunk semicircular arc gauge
   robotEyes.cpp        — Sound-reactive robot eyes: 4 states (IDLE/CURIOUS/ALERT/SHOCK) driven by mic amplitude, sprite-buffered, arc mouth
   tempHumidity.cpp     — Grove DHT11 temperature & humidity screen: colour-coded readings, 2 s refresh, right Grove A0; honours g_tempUnit (°C/°F)
   deviceInfo.cpp       — Device info sub-screen: MCU, memory, serial number, firmware build
@@ -192,14 +192,14 @@ Each sub-screen is a **blocking loop** that returns when the user exits. On retu
 The RTL8720DN runs WiFi and BLE as independent firmware modules. `wifi_off()` / `wifi_on()` (called by `WiFi.mode()`) reset the radio coexistence state but do not touch the BLE firmware module. After exiting the WiFi analyser, `bleReinit()` resets `ble_start_flags` so the next BLE operation re-issues `ble_start()`. BLE data screens (Claude, Sys Stats, Process Watch) re-start advertising correctly via the `ble_start()` guard in `bleSetActive(true)`.
 
 ### Sonar screen
-`ultrasonicSensor.cpp` drives a **Seeed Grove Ultrasonic Distance Sensor** (SKU 101020010) via the **left Grove UART port** (TRIG → D1, ECHO → D0). This sensor is 3.3 V/5 V compatible and plugs directly into the Grove connector — use 5 V VCC for full ~400 cm range, 3.3 V caps it at ~150–200 cm. The generic HC-SR04 is **not recommended**: its ECHO line outputs 5 V and the SAMD51 is not 5 V tolerant. If used, fit a 1 kΩ/2 kΩ voltage divider on ECHO or use the HC-SR04+ (3.3 V variant).
+`ultrasonicSensor.cpp` drives a **[Seeed Grove Ultrasonic Distance Sensor](https://wiki.seeedstudio.com/Grove-Ultrasonic_Ranger/)** (SKU 101020010) via the **right Grove port** (SIG → A0, same port as the DHT11). The sensor uses a single shared SIG pin for both trigger and echo — not the separate TRIG/ECHO HC-SR04 protocol. This sensor is 3.3 V/5 V compatible; use 5 V VCC for full ~400 cm range. **Do not use the left Grove port** (near USB-C): those pins share the SAMD51 SWD debug interface and a connected sensor will freeze the device on reset/power-on.
 
 The semicircular arc gauge fills clockwise as proximity increases (far = empty, close = full). Zone colours: neon cyan (safe, > 3× threshold), amber (caution, 1–3× threshold), magenta (danger, < threshold). The threshold tick is drawn as a ring-clipped radial line so it never leaves stray pixels outside the arc boundary on redraw. `pulseIn` returns -1 on timeout (nothing in range) — this is normal behaviour with no sensor connected.
 
 ### Temp + Humidity screen
-`tempHumidity.cpp` reads a **[Grove DHT11](https://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/)** sensor on the **right Grove port** (data → A0). Displays temperature (°C) and humidity (%) with colour-coded value bands in two centred panels; readings refresh every 2 seconds. The right Grove port is used by default to keep D0/D1 free for Sonar — but since both screens are never active simultaneously, the DHT11 can alternatively be wired to the left Grove port (data → D0) by changing `#define DHT_PIN` in `tempHumidity.cpp`.
+`tempHumidity.cpp` reads a **[Grove DHT11](https://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/)** sensor on the **right Grove port** (data → A0). Displays temperature (°C or °F) and humidity (%) with colour-coded value bands in two centred panels; readings refresh every 2 seconds. The right Grove port keeps D0/D1 free — but since Sonar and Temp+Humidity are never active simultaneously, the DHT11 can alternatively be wired to the left Grove port (data → D0) by changing `#define DHT_PIN` in `tempHumidity.cpp`.
 
-The sensor source tag (`DHT11 / A0`) is placed in the header at x=155 to stay clear of the battery indicator (which occupies x≥244). The error state uses a three-tier layout — size-3 `READ ERROR` heading, size-2 pin hint, size-1 port detail — so a missing sensor is immediately visible.
+The degree symbol is rendered as a `drawCircle` call (the default GLCD font's `\xb0` renders as a block character on this hardware). Number updates are digit-level incremental: `dtostrf` always produces a fixed 5-char string, and only the 24×32 px character cells that differ from the previously displayed string are erased and redrawn — so a change from `26.4` to `26.5` touches a single cell. Full panel clears only happen on first draw or when the colour zone changes. The `inError` flag ensures the error state is drawn only on the valid→error transition, not every poll cycle. The sensor source tag (`DHT11 / A0`) sits at x=155 in the header, clear of the battery overlay (x≥244). The error state uses a three-tier layout — size-3 `READ ERROR` heading, size-2 pin hint, size-1 port detail.
 
 ### SD card viewer
 `sdCardViewer.cpp` reads BMP files from any folder on the microSD card. Navigation is three levels deep:

@@ -91,56 +91,103 @@ static void drawTHChrome()
 }
 
 // ---------------------------------------------------------------------------
-// Reading panels — cleared and redrawn on each successful read
+// Draw a 5-char fixed-width number string centred at (cx,y), redrawing only
+// the character cells that differ from oldStr.  Pass nullptr to force all.
+// Size-4 GLCD font: each cell is 24×32 px (6*4 wide, 8*4 tall).
 // ---------------------------------------------------------------------------
-static void drawTHReadings(float tempC, float hum)
+static void drawNumDiff(int cx, int y, const char* newStr, const char* oldStr, uint16_t col)
+{
+    const int W = 24, H = 32;
+    int x0 = cx - (5 * W) / 2;
+    tft.setTextSize(4);
+    tft.setTextColor(col, TFT_BLACK);
+    tft.setTextDatum(TL_DATUM);
+    for (int i = 0; i < 5; i++)
+    {
+        if (!oldStr || oldStr[i] != newStr[i])
+        {
+            tft.fillRect(x0 + i * W, y, W, H, TFT_BLACK);
+            if (newStr[i] != ' ')
+            {
+                char ch[2] = { newStr[i], '\0' };
+                tft.drawString(ch, x0 + i * W, y);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Reading panels — incremental: full panel clear only on first draw or zone
+// colour change; otherwise only the number digits that changed are redrawn.
+// The degree symbol is drawn as a small circle (font \xb0 renders as a block).
+// ---------------------------------------------------------------------------
+static void drawTHReadings(float tempC, float hum, float prevTempC, float prevHum)
 {
     uint16_t tc = thTempColor(tempC);
     uint16_t hc = thHumColor(hum);
-    char buf[10];
     float displayTemp = (g_tempUnit == 1) ? (tempC * 9.0f / 5.0f + 32.0f) : tempC;
 
-    // ---- Temperature (left, x=0..158) ----
-    tft.fillRect(0, 48, 158, 169, TFT_BLACK);
+    bool tcColorChanged = !isnan(prevTempC) && (tc != thTempColor(prevTempC));
+    bool hcColorChanged = !isnan(prevHum)   && (hc != thHumColor(prevHum));
+    bool tempChanged = isnan(prevTempC) || fabsf(tempC - prevTempC) > 0.05f || tcColorChanged;
+    bool humChanged  = isnan(prevHum)   || fabsf(hum  - prevHum)   > 0.05f || hcColorChanged;
 
-    // Large value — centred in panel
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextSize(4);
-    tft.setTextColor(tc, TFT_BLACK);
-    dtostrf(displayTemp, 5, 1, buf);
-    tft.drawString(buf, 79, 75);
+    if (!tempChanged && !humChanged) return;
 
-    // Degree + unit
-    tft.setTextSize(2);
-    tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
-    tft.drawString(g_tempUnit == 1 ? "\xb0""F" : "\xb0""C", 79, 119);
+    // Static strings track what digits are currently on screen
+    static char prevTempStr[8] = "";
+    static char prevHumStr[8]  = "";
 
-    // Band label
-    tft.setTextSize(1);
-    tft.setTextColor(tc, TFT_BLACK);
-    tft.drawString(thTempLabel(tempC), 79, 145);
+    char tempStr[8], humStr[8];
+    dtostrf(displayTemp, 5, 1, tempStr);
+    dtostrf(hum, 5, 1, humStr);
 
-    // Thin accent underline below band label
-    tft.drawFastHLine(20, 158, 118, tc);
+    if (tempChanged)
+    {
+        bool fullRedraw = isnan(prevTempC) || tcColorChanged;
+        if (fullRedraw)
+        {
+            tft.fillRect(0, 48, 158, 169, TFT_BLACK);
+            // Unit — "C"/"F" with a drawn circle for the degree symbol
+            tft.setTextDatum(TC_DATUM);
+            tft.setTextSize(2);
+            tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
+            tft.drawString(g_tempUnit == 1 ? "F" : "C", 85, 119);
+            tft.drawCircle(73, 122, 3, tft.color565(0, 148, 165));
+            // Band label + underline
+            tft.setTextSize(1);
+            tft.setTextColor(tc, TFT_BLACK);
+            tft.drawString(thTempLabel(tempC), 79, 145);
+            tft.drawFastHLine(20, 158, 118, tc);
+            prevTempStr[0] = '\0';  // force all digits to redraw
+        }
+        drawNumDiff(79, 75, tempStr, prevTempStr[0] ? prevTempStr : nullptr, tc);
+        strcpy(prevTempStr, tempStr);
+    }
 
-    // ---- Humidity (right, x=161..319) ----
-    tft.fillRect(161, 48, 159, 169, TFT_BLACK);
+    if (humChanged)
+    {
+        bool fullRedraw = isnan(prevHum) || hcColorChanged;
+        if (fullRedraw)
+        {
+            tft.fillRect(161, 48, 159, 169, TFT_BLACK);
+            tft.setTextDatum(TC_DATUM);
+            tft.setTextSize(2);
+            tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
+            tft.drawString("%RH", 240, 119);
+            tft.setTextSize(1);
+            tft.setTextColor(hc, TFT_BLACK);
+            tft.drawString(thHumLabel(hum), 240, 145);
+            tft.drawFastHLine(181, 158, 118, hc);
+            prevHumStr[0] = '\0';
+        }
+        drawNumDiff(240, 75, humStr, prevHumStr[0] ? prevHumStr : nullptr, hc);
+        strcpy(prevHumStr, humStr);
+    }
 
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextSize(4);
-    tft.setTextColor(hc, TFT_BLACK);
-    dtostrf(hum, 5, 1, buf);
-    tft.drawString(buf, 240, 75);
-
-    tft.setTextSize(2);
-    tft.setTextColor(tft.color565(0, 148, 165), TFT_BLACK);
-    tft.drawString("%RH", 240, 119);
-
-    tft.setTextSize(1);
-    tft.setTextColor(hc, TFT_BLACK);
-    tft.drawString(thHumLabel(hum), 240, 145);
-
-    tft.drawFastHLine(181, 158, 118, hc);
+    // Restore divider — may have been erased by a full-panel fillRect above
+    tft.drawFastVLine(159, 32, 183, tft.color565(0, 40, 60));
+    tft.drawFastVLine(160, 32, 183, tft.color565(0, 55, 75));
 
     tft.setTextDatum(TL_DATUM);
 }
@@ -192,20 +239,16 @@ void tempHumidityScreen()
     dht.begin();
 
     drawTHChrome();
-    drawTHStatus(0);    // "UPDATED NOW" as placeholder
     drawBatteryStatus(tft.color565(0, 8, 20));
-
-    // Show a waiting message in the reading area until the first read
-    tft.setTextDatum(MC_DATUM);
-    tft.setTextSize(1);
-    tft.setTextColor(tft.color565(0, 80, 100), TFT_BLACK);
-    tft.drawString("WAITING FOR FIRST READ...", 160, 128);
-    tft.setTextDatum(TL_DATUM);
 
     static const unsigned long READ_INTERVAL = 2000;  // DHT11 max 1 Hz
     unsigned long lastRead    = 0;
     unsigned long lastReadAge = 0;
     bool firstRead = true;
+    float prevTempC = NAN;
+    float prevHum   = NAN;
+    unsigned long lastAgeS = ULONG_MAX;  // last displayed age in whole seconds
+    bool inError = false;
 
     while (true)
     {
@@ -217,9 +260,13 @@ void tempHumidityScreen()
 
         unsigned long now = millis();
 
-        // Refresh age counter every second between sensor reads
-        if (!firstRead && (now % 1000) < 100) {
-            drawTHStatus(now - lastReadAge);
+        // Refresh age counter only when the displayed whole-second value changes
+        if (!firstRead) {
+            unsigned long ageS = (now - lastReadAge) / 1000;
+            if (ageS != lastAgeS) {
+                lastAgeS = ageS;
+                drawTHStatus(ageS * 1000);
+            }
         }
 
         if (now - lastRead < READ_INTERVAL) {
@@ -232,10 +279,24 @@ void tempHumidityScreen()
         float temp = dht.readTemperature();
 
         if (isnan(hum) || isnan(temp)) {
-            drawTHError();
+            if (!inError) {
+                inError = true;
+                drawTHError();
+                prevTempC = NAN;
+                prevHum   = NAN;
+            }
         } else {
-            drawTHReadings(temp, hum);
+            if (inError) {
+                inError = false;
+                // Restore the divider now that we're back to two-panel mode
+                tft.drawFastVLine(159, 32, 183, tft.color565(0, 40, 60));
+                tft.drawFastVLine(160, 32, 183, tft.color565(0, 55, 75));
+            }
+            drawTHReadings(temp, hum, prevTempC, prevHum);
+            prevTempC   = temp;
+            prevHum     = hum;
             lastReadAge = now;
+            lastAgeS    = ULONG_MAX;  // force status redraw next loop
             firstRead   = false;
             drawTHStatus(0);
         }
