@@ -133,31 +133,42 @@ static uint16_t usageColor(float pct)
 }
 
 // -------------------------------------------------------------------------
-// Draws one labelled usage row at vertical position y.
-static void drawUsageRow(const char* label, float pct, int resetMins, const char* resetStr, int y)
+// Static chrome for one usage row: row label + bar border.
+// Called once per row during the initial full draw only.
+static void drawUsageRowChrome(const char* label, int y)
 {
-    if (pct < 0.0f) pct = 0.0f;
-    float barPct = pct > 100.0f ? 100.0f : pct;  // cap bar fill, keep raw for label
-
-    uint16_t col = usageColor(pct);
-
     tft.setTextSize(1);
     tft.setTextColor(tft.color565(190, 152, 135), TFT_BLACK);
     tft.drawString(label, 20, y);
+    tft.drawRect(20, y + 13, 228, 22, tft.color565(35, 40, 35));
+}
 
+// -------------------------------------------------------------------------
+// Dynamic data for one usage row: bar fill, pct, reset text.
+// Safe to call on every data update — never touches the label or bar border.
+// Pct uses a fixed 4-char format with bg colour so no fillRect clear is needed.
+static void drawUsageRowData(float pct, int resetMins, const char* resetStr, int y)
+{
+    if (pct < 0.0f) pct = 0.0f;
+    float barPct = pct > 100.0f ? 100.0f : pct;
+    uint16_t col = usageColor(pct);
+
+    // Bar interior — fills inside the 1px border drawn by drawUsageRowChrome,
+    // so the border is never overwritten and never needs to be redrawn.
     int barY = y + 13;
-    int barW = 228;
-    int barH = 22;
-    if (barPct > 0.0f)
-        tft.fillRect(20, barY, (int)(barW * barPct / 100.0f), barH, col);
-    tft.drawRect(20, barY, barW, barH, tft.color565(35, 40, 35));   // neutral dark border
+    const int innerW = 226, innerH = 20;   // interior: x=21..246, y=barY+1..barY+20
+    int fillW = (int)(innerW * barPct / 100.0f);
+    if (fillW > 0)         tft.fillRect(21,          barY + 1, fillW,           innerH, col);
+    if (fillW < innerW)    tft.fillRect(21 + fillW,  barY + 1, innerW - fillW,  innerH, TFT_BLACK);
 
+    // Pct — fixed 4-char right-aligned format; bg-colour draw overwrites old value
     char pctBuf[8];
-    sprintf(pctBuf, "%.0f%%", pct);
+    sprintf(pctBuf, "%3.0f%%", pct);
     tft.setTextSize(2);
     tft.setTextColor(col, TFT_BLACK);
     tft.drawString(pctBuf, 256, barY + 3);
 
+    // Reset lines — two 8px strips; must clear because string length can vary
     char resetBuf[40];
     if (resetMins >= 1440) {
         int days  = resetMins / 1440;
@@ -176,14 +187,17 @@ static void drawUsageRow(const char* label, float pct, int resetMins, const char
     } else {
         sprintf(resetBuf, "Resetting now");
     }
+    // Reset lines — fixed-width (38 chars = 228 px at size 1) so the drawString
+    // bg fill overwrites any shorter previous string without a separate fillRect.
+    char line[42];
     tft.setTextSize(1);
+    snprintf(line, sizeof(line), "%-38s", resetBuf);
     tft.setTextColor(tft.color565(215, 175, 148), TFT_BLACK);
-    tft.drawString(resetBuf, 20, barY + barH + 4);
+    tft.drawString(line, 20, barY + 26);
 
-    if (resetStr && resetStr[0] != '\0') {
-        tft.setTextColor(tft.color565(185, 148, 128), TFT_BLACK);
-        tft.drawString(resetStr, 20, barY + barH + 14);
-    }
+    snprintf(line, sizeof(line), "%-38s", (resetStr && resetStr[0] != '\0') ? resetStr : "");
+    tft.setTextColor(tft.color565(185, 148, 128), TFT_BLACK);
+    tft.drawString(line, 20, barY + 36);
 }
 
 // -------------------------------------------------------------------------
@@ -248,8 +262,10 @@ static void drawClaudeUsage()
     }
     else
     {
-        drawUsageRow("SESSION  (5h window)", usageData.session_pct, usageData.session_reset_mins, usageData.session_reset_str, 38);
-        drawUsageRow("WEEKLY   (7d window)", usageData.weekly_pct, usageData.weekly_reset_mins, usageData.weekly_reset_str, 113);
+        drawUsageRowChrome("SESSION  (5h window)", 38);
+        drawUsageRowData(usageData.session_pct, usageData.session_reset_mins, usageData.session_reset_str, 38);
+        drawUsageRowChrome("WEEKLY   (7d window)", 113);
+        drawUsageRowData(usageData.weekly_pct, usageData.weekly_reset_mins, usageData.weekly_reset_str, 113);
 
         bool limited  = (strncmp(usageData.status, "limited",  7) == 0);
         bool rejected = (strncmp(usageData.status, "rejected", 8) == 0);
@@ -257,18 +273,18 @@ static void drawClaudeUsage()
         uint16_t badgeColor    = (limited || rejected) ? tft.color565(210, 65, 55)  : tft.color565(175, 140, 60);
         uint16_t badgeBg       = (limited || rejected) ? tft.color565(55, 18, 15)   : tft.color565(40, 32, 8);
         int badgeW = rejected ? 70 : 58;
-        int badgeH = 16;
+        const int badgeH = 16, badgeY = 188;
         int badgeX = (320 - badgeW) / 2;
-        int badgeY = 188;
 
-        char s5h[8]; sprintf(s5h, "%d%%", (int)usageData.session_pct);
+        // s5h/s7d: fixed 4-char format at fixed positions; bg colour overwrites old value
+        char s5h[8]; sprintf(s5h, "%3d%%", (int)usageData.session_pct);
         tft.setTextSize(2);
         tft.setTextColor(usageColor(usageData.session_pct), TFT_BLACK);
         tft.drawString(s5h, 28, badgeY);
 
-        char s7d[8]; sprintf(s7d, "%d%%", (int)usageData.weekly_pct);
+        char s7d[8]; sprintf(s7d, "%3d%%", (int)usageData.weekly_pct);
         tft.setTextColor(usageColor(usageData.weekly_pct), TFT_BLACK);
-        tft.drawString(s7d, 300 - (int)strlen(s7d) * 12, badgeY);
+        tft.drawString(s7d, 252, badgeY);   // 252 + 4*12 = 300
 
         tft.setTextSize(1);
         tft.fillRect(badgeX, badgeY, badgeW, badgeH, badgeBg);
@@ -289,24 +305,14 @@ static void drawClaudeUsage()
 }
 
 // -------------------------------------------------------------------------
-// Targeted in-place update — only rewrites changing pixels so the header,
-// footer and row labels never flash.  Only called when usageData.valid.
+// Targeted in-place update — only touches dynamic pixels; static elements
+// (header, footer, row labels, bar borders) are never redrawn so they never
+// flash.  Only called when usageData.valid and a new data packet arrived.
 static void drawClaudeUsageUpdate()
 {
-    // Erase only the mutable regions of each usage row.
-    // Row 1 (SESSION, row y=38, barY=51):
-    tft.fillRect(20,  51, 228, 22, TFT_BLACK);   // bar area
-    tft.fillRect(256, 54,  52, 16, TFT_BLACK);   // pct text (size 2, max 4 chars)
-    tft.fillRect(20,  77, 290, 18, TFT_BLACK);   // two reset lines
-    // Row 2 (WEEKLY, row y=113, barY=126):
-    tft.fillRect(20,  126, 228, 22, TFT_BLACK);
-    tft.fillRect(256, 129,  52, 16, TFT_BLACK);
-    tft.fillRect(20,  152, 290, 18, TFT_BLACK);
-    // Bottom: s5h/s7d percentages + status badge + star:
-    tft.fillRect(8, 188, 308, 16, TFT_BLACK);
-
-    drawUsageRow("SESSION  (5h window)", usageData.session_pct, usageData.session_reset_mins, usageData.session_reset_str, 38);
-    drawUsageRow("WEEKLY   (7d window)", usageData.weekly_pct,  usageData.weekly_reset_mins,  usageData.weekly_reset_str,  113);
+    // Row data only — chrome (label + border) was drawn once by drawClaudeUsage()
+    drawUsageRowData(usageData.session_pct, usageData.session_reset_mins, usageData.session_reset_str, 38);
+    drawUsageRowData(usageData.weekly_pct,  usageData.weekly_reset_mins,  usageData.weekly_reset_str,  113);
 
     bool limited  = (strncmp(usageData.status, "limited",  7) == 0);
     bool rejected = (strncmp(usageData.status, "rejected", 8) == 0);
@@ -314,19 +320,23 @@ static void drawClaudeUsageUpdate()
     uint16_t badgeColor    = (limited || rejected) ? tft.color565(210, 65, 55)  : tft.color565(175, 140, 60);
     uint16_t badgeBg       = (limited || rejected) ? tft.color565(55, 18, 15)   : tft.color565(40, 32, 8);
     int badgeW = rejected ? 70 : 58;
-    int badgeH = 16;
+    const int badgeH = 16, badgeY = 188;
     int badgeX = (320 - badgeW) / 2;
-    int badgeY = 188;
 
-    char s5h[8]; sprintf(s5h, "%d%%", (int)usageData.session_pct);
+    // s5h/s7d: fixed 4-char format at fixed positions; bg colour overwrites old value
+    // without needing a separate fillRect clear.
+    char s5h[8]; sprintf(s5h, "%3d%%", (int)usageData.session_pct);
     tft.setTextSize(2);
     tft.setTextColor(usageColor(usageData.session_pct), TFT_BLACK);
     tft.drawString(s5h, 28, badgeY);
 
-    char s7d[8]; sprintf(s7d, "%d%%", (int)usageData.weekly_pct);
+    char s7d[8]; sprintf(s7d, "%3d%%", (int)usageData.weekly_pct);
     tft.setTextColor(usageColor(usageData.weekly_pct), TFT_BLACK);
-    tft.drawString(s7d, 300 - (int)strlen(s7d) * 12, badgeY);
+    tft.drawString(s7d, 252, badgeY);   // 252 + 4*12 = x300
 
+    // Badge: clear only the narrow star+badge area (max 82px wide) rather than
+    // a full-screen-width strip.  REJECTED badgeX=125, star at 114; covers both sizes.
+    tft.fillRect(113, badgeY, 83, badgeH, TFT_BLACK);
     tft.setTextSize(1);
     tft.fillRect(badgeX, badgeY, badgeW, badgeH, badgeBg);
     drawCybBoxCoral(badgeX, badgeY, badgeW, badgeH, badgeColor, 6);
