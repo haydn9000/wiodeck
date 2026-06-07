@@ -148,6 +148,9 @@ def poll_api(token: str) -> dict | None:
         log(f"API request failed: {e}")
         return None
 
+    if resp.status_code == 401:
+        log("Token expired or rejected (401) — credentials will be reloaded on next poll.")
+        return None
     if resp.status_code not in (200, 429):
         log(f"Unexpected status {resp.status_code}")
         return None
@@ -200,7 +203,8 @@ async def _ble_find(address: str | None) -> str | None:
     return None
 
 
-async def _ble_run(token: str, address: str | None) -> None:
+async def _ble_run(address: str | None) -> None:
+    token = ""
     while True:
         addr = await _ble_find(address)
         if not addr:
@@ -216,6 +220,7 @@ async def _ble_run(token: str, address: str | None) -> None:
                 while client.is_connected:
                     now = time.time()
                     if now - last_poll >= POLL_INTERVAL:
+                        token = load_token() or token  # pick up refreshed credentials
                         log("Polling Anthropic API...")
                         payload = poll_api(token)
                         if payload:
@@ -247,13 +252,11 @@ def main() -> None:
             print("BLE mode requires bleak:  pip install bleak")
             sys.exit(1)
         address = args[1] if len(args) > 1 else None
-        token = load_token()
-        if not token:
-            log("Could not load API token — aborting.")
-            sys.exit(1)
+        if not load_token():
+            sys.exit(1)  # load_token() already logged the error
         log("Token loaded.")
         try:
-            asyncio.run(_ble_run(token, address))
+            asyncio.run(_ble_run(address))
         except KeyboardInterrupt:
             log("Stopped.")
         return
@@ -269,10 +272,8 @@ def main() -> None:
     import serial
 
     port = args[0]
-    token = load_token()
-    if not token:
-        log("Could not load API token — aborting.")
-        sys.exit(1)
+    if not load_token():
+        sys.exit(1)  # load_token() already logged the error
     log("Token loaded.")
 
     try:
@@ -282,11 +283,13 @@ def main() -> None:
         log(f"Could not open {port}: {e}")
         sys.exit(1)
 
+    token = ""
     last_poll = 0.0
     try:
         while True:
             now = time.time()
             if now - last_poll >= POLL_INTERVAL:
+                token = load_token() or token  # pick up refreshed credentials
                 log("Polling Anthropic API...")
                 payload = poll_api(token)
                 if payload:
